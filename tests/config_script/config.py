@@ -82,6 +82,13 @@ def check_requirements(self):
         print('[ERROR]. perf tool is not available')
         passed = False
 
+    # check python version
+    if (sys.version_info >= (3,7)):
+        print(f'[OK] python version >= 3.7')
+    else:
+        print(f'[ERROR] python version < 3.7')
+        passed = False
+
     if not passed:
         print('System config check failed')
         return 1

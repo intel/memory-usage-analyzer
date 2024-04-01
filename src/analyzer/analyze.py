@@ -67,7 +67,6 @@ class Analyzer():
         print(f'Maximum zram memory            = {max_zram_used:3f} GiB')
         print(f'incompressible data ratio(zram)= {100 * incompressible_data_ratio:.1f}%')
 
-        full_total_memory_pressure = 0
         try:
             print(f'full total memory pressure            = {full_total_memory_pressure} us')
         except ImportError:
@@ -109,10 +108,6 @@ class Analyzer():
 
         print(f'Total PFs (Major+Minor) = {total_pf}')
         print(f'Major PFs = {major_total_pf}')
-
-        print(f'Total Diff (difference b/w total ({total:.2f} GiB)  and\
-              cgroup_total_max({cgroup_total_max:.2f} GiB)) = {total_diff:.2f} GiB')
-        print(f'file sum: {file_sum:.2f} GiB')
 
         if "zswap_total_cpu_comp_calls" in df.columns:
             total_cpu_comp_calls = df.zswap_total_cpu_comp_calls.max() -\

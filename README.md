@@ -21,7 +21,7 @@ Intel® Memory Usage Analyzer can
  
 ## Requirements
 
-* Linux system with sudo access
+* Linux system with sudo access for configuration scripts
 * Linux kernel version >= v4.18
   * zswap support 
   * swap accounting enabled - add kernel parameter  `swapaccount=1` 
