@@ -1,0 +1,14 @@
+{
+	"mode": "dynamic",
+	"reclaimer": "Squeezer",
+	"reclaimer_file": "../../src/reclaimer/squeezer.py",
+	"init_limit": 0,
+	"min_limit": 0,
+	"max_limit": 1125899906842624,
+	"delay": 0,
+	"fixed": 0,
+	"squeeze_max": 10,
+	"squeeze_delta": 1,
+	"squeeze_timeout": 2,
+	"pf_rate_watermark": 10000
+}

@@ -1,0 +1,19 @@
+{
+	"mode": "staticsweep",
+	"reclaimer": "Squeezer",
+	"reclaimer_file": "../../src/reclaimer/squeezer.py",
+	"params_ranges": [
+		{
+			"with_baseline": 1,
+			"param": "memory",
+			"range": [
+				2,
+				4,
+				8,
+				16
+			]
+		}
+	],
+	"init_limit": 0,
+	"max_limit": 1125899906842624
+}
