@@ -37,7 +37,7 @@ Clone the repo and install in a python environment
 Creating python virtual environment
 
 ```bash
-python3 -m venv virtualenv
+python -m venv virtualenv
 source virtualenv/bin/activate
 ```
 Clone and install
