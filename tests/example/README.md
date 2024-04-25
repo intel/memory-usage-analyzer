@@ -1,8 +1,25 @@
-# Example Workload
+# Usage scenarios
 This section provides usage scenarios of memory-usage-analyzer with an example workloads
 
+## Contents
+ * [Prepare the example workload](#Prepare-the-example-workload)
+
+ * [Profile Example Workload](#Profile-the-Example-Workload)
+
+     - [Baseline](#Simple-Workload---Baseline)
+
+     - [Dynamic Squeezer](#Example-Workload-with-dynamic-squeezer)
+
+     - [Static Squeezer](#Example-Workload-with-static-squeezer)
+
+     - [Run Workload in Container](../../docs/workload_container.md)
+
+ * [Multiple Workloads](../../docs/multiple_workloads.md)
+
+ * [Sanity Tests](../../docs/sanity.md)
+
 ## Prepare the example workload
-This example workload prepares a large memory segment. A portion of this memory segment is accessed (50% or 75% of the total) to create the memory regions which are the more frequently accessed (hot) and less frequently accessed (cold).
+This is prerequisite  for all the examples. This example workload prepares a large memory segment. A portion of this memory segment is accessed (50% or 75% of the total) to create the memory regions which are the more frequently accessed (hot) and less frequently accessed (cold).
 ```shell
 cd tests/example
 make
@@ -32,7 +49,7 @@ Here's an example run of the workload:
 ```
 
 ## Profile the Example Workload
-There are three different scenarios that are provided here
+There are three different scenarios that are provided here. Please make sure that [Prepare the example workload](#Prepare-the-example-workload) steps are complete.
 
 1. Baseline - Running baseline without any memory pressure and collecting the memory usage statistics
 1. Dynamic Squeezer - Running workload under a Cgroup to create memory pressure,  where the memory limit is adjusted dynamically to limit the page fault rate
@@ -49,7 +66,7 @@ cd tests/example
 config.py
 # Configuration ZSWAP compressor
 zswapcompconfig.py -c lzo-rle
-memory-usage-analyzer.py -- ./workload 8 60 10000
+memory_usage_analyzer.py ./workload 8 60 10000
 
 # Sample results, actual results may vary
 2024-04-01 22:31:19,322 - memoryusageanalyzer - INFO - args = Namespace(cgname='memoryusageanalyzer', cgpath='/sys/fs/cgroup', cmd='./workload', docker=None, options=['8', '60', '10000'], output='profile', outputforce=None, reclaimerconfig=None, sampleperiod=5, verbose=False)
@@ -108,7 +125,7 @@ With dynamic squeezer
 cd tests/example
 config.py
 zswapcompconfig.py -c lzo-rle
-memory-usage-analyzer.py -r ../../src/reclaimer/squeezerdynamicconfig.json -- ./workload 8 60 10000
+memory_usage_analyzer.py -r ../../src/reclaimer/squeezerdynamicconfig.json ./workload 8 60 10000
 # Sample results, actual results may vary
 2024-04-01 22:12:13,171 - memoryusageanalyzer - INFO - args = Namespace(cgname='memoryusageanalyzer', cgpath='/sys/fs/cgroup', cmd='./workload', docker=None, options=['8', '60', '10000'], output='profile', outputforce=None, reclaimerconfig='../../src/reclaimer/squeezerdynamicconfig.json', sampleperiod=5, verbose=False)
 2024-04-01 22:12:13,171 - memoryusageanalyzer - INFO - **** Storing profiling results in profile.6
@@ -265,7 +282,7 @@ With static squeezer
 cd tests/example
 config.py
 zswapcompconfig.py -c lzo-rle
-memory-usage-analyzer.py -r ../../src/reclaimer/squeezerstaticconfig.json -- ./workload 8 60 10000
+memory_usage_analyzer.py -r ../../src/reclaimer/squeezerstaticconfig.json ./workload 8 60 10000
 
 # Sample results for baseline
 2024-04-01 21:44:48,272 - memoryusageanalyzer - INFO - args = Namespace(cgname='memoryusageanalyzer', cgpath='/sys/fs/cgroup', cmd='./workload', docker=None, options=['8', '60', '10000'], output='profile', outputforce=None, reclaimerconfig='../../src/reclaimer/squeezerstaticconfig.json', sampleperiod=5, verbose=False)
@@ -367,40 +384,4 @@ There are multiple directories that are created for each memory-limit runs. Here
 
 A memory usage report is generated after the profiling runs are complete.
 The default results path is profile* and we can also override the default path using the -o option.
-
-### To run a workload in a docker container:
-1. Give the workload's docker container a name on the docker command line (`--name NAME`)
-2. For convenience, have docker automatically remove the container when it exits, so the container name can be reused (`--rm`)
-3. Add the `--docker NAME` to the `memory-usage-analyzer.py` command.
-
-If cgroup v2 is enabled, do specify the cgroup parent by `--cgroup-parent <memoryusageanalyzer.slice>`, otherwise stats won't be collected correctly.
-
-```shell
-docker info
-# Sample output
-Cgroup Version: 2
-
-```
-Example:
-```shell
-sudo docker run --rm --name memoryusageanalyzer -v $PWD:/memoryusageanalyzer ubuntu /memoryusageanalyzer/example/workload 4 30 1000
-memory-usage-analyzer.py --docker memoryusageanalyzer ./docker.sh
-
-# Sample results, actual results may vary
-2024-01-17 00:03:09,703 - memoryusageanalyzer - INFO - args = Namespace(verbose=False, output='profile', output_force=None, sample_period=5, compaction_period=0, docker='memoryusageanalyzer', skip_stats=0, cgpath='/sys/fs/cgroup', cgname='memoryusageanalyzer', reclaimer_config=None, cmd='./docker.sh', options=[])
-2024-01-17 00:03:09,703 - memoryusageanalyzer - INFO - **** Storing profiling results in profile
-2024-01-17 00:03:09,708 - memoryusageanalyzer - INFO - cgroup v2 enabled and memory controller detected
-2024-01-17 00:03:09,713 - memoryusageanalyzer - INFO - **** Starting job in docker
-2024-01-17 00:03:09,715 - memoryusageanalyzer - INFO - **** Waiting for container "memoryusageanalyzer"
-[INFO] (main:56) : pid       = 1
-[INFO] (main:57) : memory    = 4 GiB = 1048576 pages
-[INFO] (main:58) : hot timer = 30 sec
-[INFO] (main:59) : loops     = 1000
-[INFO] (main:73) : Done with setup in 0 seconds.
-2024-01-17 00:03:10,879 - memoryusageanalyzer - INFO - **** Found container "memoryusageanalyzer" = 659881870e44e57696553cd1c19ac0710c43bfa7ed94bb917c6db328b468b72f
-2024-01-17 00:03:10,895 - memoryusageanalyzer - INFO - **** Starting stats
-[INFO] (main:90) : Done with test in 10 seconds.
-2024-01-17 00:06:41,304 - memoryusageanalyzer - INFO - **** Job finished
-2024-01-17 00:06:41,304 - memoryusageanalyzer - INFO - **** Stopping stats
-**** Closing profile/baseline/stats.csv.gz
 ```

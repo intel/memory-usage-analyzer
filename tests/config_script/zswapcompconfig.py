@@ -52,9 +52,9 @@ def report():
     header('config')
     status()
 
-def main(arguments):
+def main(inputs):
     """main entry"""
-    debug(f'args = {arguments}')
+    debug(f'arguments = {inputs}')
 
     debug('Disable swap')
     write_param('0', f'{"/sys/module/zswap/parameters/enabled"}')
@@ -79,7 +79,6 @@ def main(arguments):
 
     status()
 
-
 if __name__ == '__main__':
     if os.geteuid() != 0:
         print('Must run as root or with sudo')
@@ -89,23 +88,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,\
                                      description=MSG)
     parser.add_argument('-r', '--report', action='store_true', help='report config and stats only')
-    parser.add_argument('-c', '--compressor', default='lzo-rle', choices=('lzo-rle', 'zstd',\
-                        'rle1a'), help='compression engine (software)')
+    parser.add_argument('-c', '--compressor', default='lzo-rle', choices=\
+            ('lzo-rle', 'zstd', 'rle1a'), help='compression engine (software)')
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output')
 
-    args = parser.parse_args()
+    arguments = parser.parse_args()
 
     # setup logging
-    LOG_LEVEL = logging.DEBUG if args.verbose else logging.INFO
+    LOG_LEVEL = logging.DEBUG if arguments.verbose else logging.INFO
     handlers = [logging.StreamHandler()]
-    if args.verbose:
+    if arguments.verbose:
         LOG_FORMAT = '%(levelname)-8s %(asctime)s : %(message)s'
     else:
         LOG_FORMAT = '%(message)s'
 
     logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT, handlers=handlers)
 
-    if args.report:
+    if arguments.report:
         report()
     else:
-        main(args)
+        main(arguments)

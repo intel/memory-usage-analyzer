@@ -97,7 +97,7 @@ class Workload(Thread):
 
         if os.path.exists(memstat_path):
             swapaccount_enabled = int(run(f'grep -c swap {memstat_path}',
-                                    shell=True, capture_output=True, check=False).stdout)
+                                      shell=True, capture_output=True, check=False).stdout)
             if swapaccount_enabled:
                 print('[OK] swap accounting enabled')
             else:
@@ -107,7 +107,7 @@ class Workload(Thread):
         # check zswap
         zswap_path = '/sys/module/zswap'
         if os.path.exists(zswap_path):
-            print('[OK] zswap enabled')
+            print('[OK] zswap enabled.')
 
         # check perf
         perf_available = shutil.which('perf')
@@ -115,6 +115,8 @@ class Workload(Thread):
             print(f'[OK] perf tool available ({perf_available})')
 
     def run(self):
+        self.logger.info(f'{"**** In run Starting"}')
+        print("workload start")
         # check and print the system config in the info file
         with open(f'{self.resultpath + INFO_LOG}', 'a', encoding="utf-8") as fp:
             original_stdout = sys.stdout

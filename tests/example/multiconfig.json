@@ -1,0 +1,14 @@
+[
+	{
+		"cmd":"./workload 8 60 1000",
+		"cgroupname":"memoryusageanalyzer1",
+		"output":"./profile_workload1",
+		"reclaimerconfig":""
+	},
+	{
+		"cmd":"./workload 8 60 1000",
+		"cgroupname":"memoryusageanalyzer2",
+		"output":"./profile_workload2",
+		"reclaimerconfig":"../../src/reclaimer/squeezerdynamicconfig.json"
+	}
+]

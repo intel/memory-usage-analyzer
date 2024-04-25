@@ -25,13 +25,14 @@ setup(
     description='Memory compression profiling tool.',
     author='Pallavi G, Ravindran Binuraj',
     author_email='pallavi.g@intel.com, binuraj.ravindran@intel.com',
-    
+
     python_requires='>=3.7',
     # Fixing the bokeh version as newer versions like 3.0 shrink the plots
     install_requires=['pandas', 'bokeh==2.4.3', 'shapely', 'matplotlib','pytest', 'xlsxwriter',\
-                      'numpy', 'colorcet', 'scipy', 'jsonschema'],
+                      'numpy==1.26.4', 'colorcet', 'scipy', 'jsonschema'],
     packages=find_packages(),
-    scripts=['src/core/memory-usage-analyzer.py',
+    scripts=['src/core/memory_usage_analyzer.py',
+             'tests/example/multi_config.py',
              'src/core/stats.py',
              'src/analyzer/plot.py',
              'src/analyzer/analyze.py',

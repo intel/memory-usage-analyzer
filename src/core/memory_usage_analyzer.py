@@ -11,6 +11,7 @@ import time
 import sys
 import json
 import importlib.util
+from getpass import getuser
 from src.core.util import unique_dir
 from src.analyzer.analyze import Analyzer
 from src.core.workload import Workload
@@ -42,8 +43,7 @@ class MemoryUsageAnalyzer:
                 cgpath,
                 cgname,
                 reclaimerconfig,
-                cmd,
-                options):
+                cmd):
         self.verbose = verbose
         self.output = output
         self.outputforce = outputforce
@@ -53,7 +53,27 @@ class MemoryUsageAnalyzer:
         self.cgname = cgname
         self.reclaimerconfig = reclaimerconfig
         self.cmd = cmd
-        self.options = options
+        self.job = None
+        self.container_id = None
+        self.rec_inst = None
+        self.stats = None
+        self.reclaimer = None
+        self.report = None
+        self.cgroup_path_create()
+
+    def cgroup_path_create(self):
+        """creation of cgroup directory based on cgname"""
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        config_args = ''
+        config_args += f'{self.cgpath} '
+        config_args += f'{self.cgname} '
+        cguser = getuser()
+        config_args += f'{cguser} '
+        config_cmd = f'sudo bash {script_dir}/cgroup_config.sh {config_args}'
+        if self.verbose:
+            print(config_cmd)
+        result = subprocess.run(config_cmd, shell=True, check=False)
+        return result
 
     def reclaimer_config_module_loading(self, result_path):
         """Reclaimer config parsing and the reclaimer module loading"""
@@ -114,15 +134,14 @@ class MemoryUsageAnalyzer:
             rec_inst = rec_class(self.cgpath,
                     self.cgname,
                     self.sampleperiod,
-                    config,
-                    param)
+                    config)
             if rec_inst is None:
                 print("No reclaimer initialized")
                 sys.exit(1)
-            squeeze = True
+            reclaimer = True
         else:
             rec_inst = None
-            squeeze = False
+            reclaimer = False
 
         if param:
             # config the sweep parameter
@@ -147,7 +166,7 @@ class MemoryUsageAnalyzer:
         stats = subprocess.Popen(stats_cmd.split())
 
         # start reclaimer
-        if squeeze:
+        if reclaimer:
             logger.info("**** Starting reclaimer")
             rec_inst.start()
 
@@ -168,9 +187,9 @@ class MemoryUsageAnalyzer:
         stats.terminate()
         stats.wait()
 
-        # stop squeezer
-        if squeeze:
-            logger.info("**** Stopping squeezer")
+        # stop reclaimer
+        if reclaimer:
+            logger.info("**** Stopping reclaimer")
             rec_inst.shutdown()
             rec_inst.join()
 
@@ -191,7 +210,95 @@ class MemoryUsageAnalyzer:
         with open(f'{report + ANALYZER_OUTPUT}', 'r', encoding="utf-8") as fp:
             print(fp.read())
 
-    def run(self):
+    def run_workload_schedule(self, cmd, report, rec_class, config, path=None, param=None,
+                              range_value=None):
+        """Instantiate the reclaimer & workload and execute them with background stats collection"""
+        if config:
+            # initiate the reclaimer
+            self.rec_inst = rec_class(self.cgpath,
+                    self.cgname,
+                    self.sampleperiod,
+                    config)
+            if self.rec_inst is None:
+                print("No reclaimer initialized")
+                sys.exit(1)
+            self.reclaimer = True
+        else:
+            self.rec_inst = None
+            self.reclaimer = False
+
+        if param:
+            # config the sweep parameter
+            self.rec_inst.config_sweep_param(param, range_value, path)
+
+        # initiate the workload with appropriate parameters
+        wl = Workload(cmd,
+            cgpath=self.cgpath,
+            cgname=self.cgname,
+            docker=self.docker,
+            logger=logger,
+            verbose=self.verbose,
+            resultpath=report)
+
+        # run the workload
+        self.job, self.container_id = wl.run()
+
+        # start stats collection
+        logger.info("**** Starting stats")
+        stats_cmd = f'stats.py -p {self.sampleperiod} -o {report + STATS_LOG} \
+                        --cgpath {self.cgpath} --cgname {self.cgname}'
+        self.stats = subprocess.Popen(stats_cmd.split())
+
+        # start reclaimer
+        if self.reclaimer:
+            logger.info("**** Starting reclaimer")
+            self.rec_inst.start()
+
+    def wait(self):
+        """wait for job to finish"""
+        job_interrupted = False
+        try:
+            if self.job:
+                self.job.wait()
+                logger.info("**** Job finished")
+            else:
+                return
+        except KeyboardInterrupt:
+            logger.info("**** Job interrupted, cleaning up")
+            job_interrupted = True
+            if self.container_id:
+                logger.info("**** Stopping docker container")
+                subprocess.run(f'sudo docker stop {self.container_id}', shell=True, check=False)
+
+        # save stats
+        logger.info("**** Stopping stats")
+        self.stats.terminate()
+        self.stats.wait()
+
+        # stop reclaimer
+        if self.reclaimer:
+            logger.info("**** Stopping reclaimer")
+            self.rec_inst.shutdown()
+            self.rec_inst.join()
+
+        if job_interrupted:
+            logger.warning("**** Job interrupted, exiting")
+            sys.exit(1)
+
+        print(self.report)
+        # initiate the Analyzer
+        al = Analyzer(self.report)
+        # generate report
+        with open(f'{self.report + ANALYZER_OUTPUT}', 'a', encoding="utf-8") as fp:
+            original_stdout = sys.stdout
+            sys.stdout = fp
+            al.run()
+            sys.stdout = original_stdout
+
+        with open(f'{self.report + ANALYZER_OUTPUT}', 'r', encoding="utf-8") as fp:
+            print(fp.read())
+
+    def run(self, schedule=False):
         """Reclaimer config parsing & Loading. Starting the workload runs"""
 
         if '%00'in self.output:
@@ -200,8 +307,7 @@ class MemoryUsageAnalyzer:
 
         if self.output != 'profile':
             if not os.path.lexists(self.output):
-                logger.error("output result path not exist = %s", self.output)
-                sys.exit(1)
+                logger.info("output result path not exist = %s, creating one", self.output)
 
         if os.path.islink(self.output):
             rpath = os.path.realpath(self.output)
@@ -214,7 +320,10 @@ class MemoryUsageAnalyzer:
         logger.info("**** Storing profiling results in %s", result_path)
 
         if self.cmd:
-            cmd = f'{self.cmd} {" ".join(self.options)}'
+            if schedule:
+                cmd = f'{self.cmd}'
+            else:
+                cmd = f'{" ".join(self.cmd)}'
         else:
             logger.error("cmd args not provided = %s", self.cmd)
             sys.exit(1)
@@ -226,7 +335,7 @@ class MemoryUsageAnalyzer:
         report = result_path + '/baseline'
         rec_class = None
         params_list = None
-
+        path = None
         if self.reclaimerconfig:
             # reclaimer config and module loading
             rec_class, config, params_list, report, path =\
@@ -237,7 +346,11 @@ class MemoryUsageAnalyzer:
             config = None
 
         # run the workload in the baseline mode. By default baseline is supported
-        self.run_workload(cmd, report, rec_class, config)
+        if schedule and (params_list is None):
+            self.report = report
+            self.run_workload_schedule(cmd, report, rec_class, config)
+        else:
+            self.run_workload(cmd, report, rec_class, config)
 
         # run the workloads with different sweep parameters ranges
         if params_list:
@@ -247,6 +360,36 @@ class MemoryUsageAnalyzer:
                     self.make_resultdir(path, f'{param["param"]}_{range_value}')
                     self.run_workload(cmd, report, rec_class, config, result_path, param,\
                                         range_value)
+
+
+def multi_config_loading(multiconfig):
+    """config parsing"""
+
+    if not multiconfig.endswith('.json'):
+        print("Invalid multi config file")
+        sys.exit(1)
+
+    if '%00'in multiconfig:
+        print("multi config path has null bytes")
+        sys.exit(1)
+
+    if not os.path.lexists(multiconfig):
+        print("reclaimer config path not exist = %s", multiconfig)
+        sys.exit(1)
+
+    if os.path.islink(multiconfig):
+        rpath = os.path.realpath(multiconfig)
+        if not os.path.lexists(rpath):
+            print("multi config path is symbolic path and not exist %s",\
+            multiconfig)
+            sys.exit(1)
+
+    # load the config file
+    config_file = f'{multiconfig}'
+    with open(config_file, 'r', encoding="utf-8") as read_file:
+        config = json.load(read_file)
+
+    return config
 
 def main():
     """main entry function"""
@@ -273,13 +416,38 @@ def main():
     add_hidden_arg('--cgpath', default='/sys/fs/cgroup', help='cgroup path')
     add_hidden_arg('--cgname', default='memoryusageanalyzer', help='cgroup name')
     add_hidden_arg('-r', '--reclaimerconfig', default=None, help='reclaimer config path')
-    parser.add_argument('cmd', metavar='[--] cmd ...',
-                        help='workload cmd to run, use "--" if command includes options')
-    parser.add_argument('options', nargs='*', help=argparse.SUPPRESS)
+    add_hidden_arg('-m', '--multiconfig', default=None, help='multi workload config path')
+    parser.add_argument('cmdoptions', nargs='*',
+                        help='workload cmd to run with options')
     args = parser.parse_args()
 
+    print(args.cmdoptions)
     logger.info("args = %s", args)
-    inst = MemoryUsageAnalyzer(args.verbose,
+    config_list = []
+    if args.multiconfig:
+        config_list = multi_config_loading(args.multiconfig)
+    inst_list = []
+    if config_list:
+        for config in config_list:
+            if "reclaimerconfig" in config:
+                args.reclaimerconfig = config["reclaimerconfig"]
+            else:
+                args.reclaimerconfig = None
+            inst = MemoryUsageAnalyzer(args.verbose,
+                    config["output"],
+                    args.outputforce,
+                    args.sampleperiod,
+                    args.docker,
+                    args.cgpath,
+                    config["cgroupname"],
+                    args.reclaimerconfig,
+                    config["cmd"])
+            inst.run(schedule=True)
+            inst_list.append(inst)
+        for inst in inst_list:
+            inst.wait()
+    else:
+        inst = MemoryUsageAnalyzer(args.verbose,
                args.output,
                args.outputforce,
                args.sampleperiod,
@@ -287,9 +455,8 @@ def main():
                args.cgpath,
                args.cgname,
                args.reclaimerconfig,
-               args.cmd,
-               args.options)
-    inst.run()
+               args.cmdoptions)
+        inst.run(schedule=False)
 
 if __name__ == "__main__":
     main()

@@ -11,9 +11,9 @@ import os
 import sys
 import csv
 import pandas
+from jsonschema import validate
 from src.core.util import kernel_version, max_memory_usage
 from src.reclaimer.basereclaimer import Reclaimer
-from jsonschema import validate
 
 STATICSCHEMA = {
     "type": "object",
@@ -83,7 +83,8 @@ DYNAMICSCHEMA = {
                               "maximum": 10000},
     },
     "required": ["mode", "reclaimer", "reclaimer_file", "init_limit", "min_limit", "max_limit",\
-                 "delay", "fixed", "squeeze_max", "squeeze_delta", "squeeze_timeout", "pf_rate_watermark"]
+                 "delay", "fixed", "squeeze_max", "squeeze_delta", "squeeze_timeout",\
+                "pf_rate_watermark"]
 }
 def get_key_value(line):
     """get the key value pair"""
@@ -128,7 +129,7 @@ def read_stats(paths):
 
 class Squeezer(Reclaimer):
     """dynamic and static memory squeezer"""
-    def __init__(self, cgpath, cgname, sample_period, config, param):
+    def __init__(self, cgpath, cgname, sample_period, config):
         super().__init__()
         self.mode = config["mode"]
         if self.mode == 'staticsweep':
@@ -162,6 +163,7 @@ class Squeezer(Reclaimer):
             self.csv_writer.writerow(["time", "mem_limit"])
 
     def shutdown(self):
+        """stop the squeezer"""
         self.active = False
 
     def delay_gen(self):

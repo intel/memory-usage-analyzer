@@ -19,38 +19,12 @@ cguser=$1; shift
 vm_swappiness=$1; shift
 
 # ====================================================================
-# check cgroup version first
-if [[ -r ${cgpath}/cgroup.controllers ]]; then
-    if [[ -e ${cgpath}/${cgname} ]]; then
-        # remove existing cgroup v2
-        until rmdir ${cgpath}/${cgname} >& /dev/null; do
-            cat ${cgpath}/${cgname}/cgroup.procs | xargs kill -9 >& /dev/null
-            sleep 1
-        done
-    fi
-else
-    # remove existing cgroup v1
-    if [[ -e ${cgpath}/memory/${cgname} ]]; then
-        # kill any processes the cgroup
-        until rmdir ${cgpath}/memory/${cgname} >& /dev/null; do
-            cat ${cgpath}/memory/${cgname}/tasks | xargs kill -9 >& /dev/null
-            sleep 1
-        done
-    fi
-    if [[ -e ${cgpath}/cpu/${cgname} ]]; then
-        # kill any processes the cgroup
-        until rmdir ${cgpath}/cpu/${cgname} >& /dev/null; do
-            cat ${cgpath}/cpu/${cgname}/tasks | xargs kill -9 >& /dev/null
-            sleep 1
-        done
-    fi
-    if [[ -e ${cgpath}/blkio/${cgname} ]]; then
-        # kill any processes the cgroup
-        until rmdir ${cgpath}/blkio/${cgname} >& /dev/null; do
-            cat ${cgpath}/blkio/${cgname}/tasks | xargs kill -9 >& /dev/null
-            sleep 1
-        done
-    fi
+if [[ -e ${cgpath}/${cgname} ]]; then
+    # remove existing cgroup v2
+    until rmdir ${cgpath}/${cgname} >& /dev/null; do
+        cat ${cgpath}/${cgname}/cgroup.procs | xargs kill -9 >& /dev/null
+        sleep 1
+    done
 fi
 
 # remove all swap devices
@@ -82,22 +56,11 @@ fi
 echo ${zswap_max_pool_percent} > /sys/module/zswap/parameters/max_pool_percent
 
 # setup cgroup
-if [[ -r ${cgpath}/cgroup.controllers ]]; then
-    mkdir ${cgpath}/${cgname}
-    chown ${cguser} ${cgpath}/cgroup.procs
-    chown -R ${cguser} ${cgpath}/${cgname}
-    # set swappiness
-    echo max > ${cgpath}/${cgname}/memory.swap.max
-else
-    mkdir ${cgpath}/memory/${cgname}
-    mkdir ${cgpath}/cpu/${cgname}
-    mkdir ${cgpath}/blkio/${cgname}
-    chown -R ${cguser} ${cgpath}/memory/${cgname}
-    chown -R ${cguser} ${cgpath}/cpu/${cgname}
-    chown -R ${cguser} ${cgpath}/blkio/${cgname}
-    # set swappiness
-    echo ${vm_swappiness} > ${cgpath}/memory/${cgname}/memory.swappiness
-fi
+mkdir ${cgpath}/${cgname}
+chown ${cguser} ${cgpath}/cgroup.procs
+chown -R ${cguser} ${cgpath}/${cgname}
+# set swappiness
+echo max > ${cgpath}/${cgname}/memory.swap.max
 
 echo ${vm_swappiness} > /proc/sys/vm/swappiness
 
@@ -106,4 +69,3 @@ echo never > /sys/kernel/mm/transparent_hugepage/enabled
 
 # enable overcommit
 echo 1 > /proc/sys/vm/overcommit_memory
-

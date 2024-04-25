@@ -6,8 +6,8 @@
 import argparse
 import subprocess
 
-from src.core.util import cold_hot_total, max_memory_usage, read_stats_df, get_file_sum,\
-    get_cgroup_total, compression_ratio, calculate_savings
+from src.core.util import cold_hot_total, max_memory_usage, read_stats_df,\
+    compression_ratio, calculate_savings
 
 def get_total_pf_count(df, counter, t_sample):
     """get the total paga fault"""
@@ -48,11 +48,6 @@ class Analyzer():
                 df.cgroup_memory_pressure_full_total.min()
 
         cold, hot, page_cache, total = cold_hot_total(df)
-
-        cgroup_total_max = get_cgroup_total(df).max() / (1 << 30)
-        file_sum = get_file_sum(df).max() / (1 << 30)
-        total_diff = abs(total - cgroup_total_max)
-
         ratio, ratio_with_same_filled = compression_ratio(df)
         potential_memory_savings_bytes, potential_maximum_memory_savings_percent,\
             potential_median_memory_savings_percent = calculate_savings(df)
@@ -84,13 +79,12 @@ class Analyzer():
         if ratio_with_same_filled > 1.001:
             print(f'Average swap memory comp ratio = {ratio_with_same_filled:.2f}\
                   (including same filled pages)')
-        return file_sum, total_diff, cgroup_total_max, total
 
     def run(self):
         """Analyzer run method"""
         print(f'Loading stats from {self.resultpath}/stats.csv.gz')
         df = read_stats_df(f'{self.resultpath}/stats.csv.gz')
-        file_sum, total_diff, cgroup_total_max, total = self.memoryanalysis(df)
+        self.memoryanalysis(df)
         t_sample = df.time.diff().mean()
 
         # Get Major page fault

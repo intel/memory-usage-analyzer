@@ -83,10 +83,10 @@ def check_requirements(self):
         passed = False
 
     # check python version
-    if (sys.version_info >= (3,7)):
-        print(f'[OK] python version >= 3.7')
+    if sys.version_info >= (3,7):
+        print('[OK] python version >= 3.7')
     else:
-        print(f'[ERROR] python version < 3.7')
+        print('[ERROR] python version < 3.7')
         passed = False
 
     if not passed:

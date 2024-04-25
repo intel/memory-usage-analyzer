@@ -1,7 +1,7 @@
 ## System Configuration
 
 Run the command below to configure the system. This config script help to configure
-zram, zswap, memory and frequency related kernel parameters
+zram, zswap, memory and frequency related kernel parameters. The [config.py](../tests/config_script/config.py) file is located in [tests/config_script](../tests/config_script)
 
 ```shell
 $ config.py

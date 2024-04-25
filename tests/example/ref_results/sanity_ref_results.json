@@ -1,0 +1,7 @@
+{
+     "max_mem": 8.018,
+     "max_static_mem": 7.216,
+     "max_swap": 1.6,
+     "max_mem_10%_limit":7.216,
+     "max_dynamic_swap": 4.4
+}
