@@ -91,7 +91,7 @@ def tests(arguments):
     validate(config, SANITYSCHEMA)
     for i in range(arguments.iterations):
         print("iteration =",i)
-        cmd = f'memory_usage_analyzer.py -o {result_path} ./workload 8 60 10000'
+        cmd = f'memory_usage_analyzer.py -o {result_path} ./workload 8 60 3000'
         shell(cmd)
     max_mem = []
     exec_time = []
@@ -154,7 +154,7 @@ def tests(arguments):
     for i in range(arguments.iterations):
         print("iteration =",i)
         cmd = f'memory_usage_analyzer.py -o {static_path} -r ./squeezerstatic_sanityconfig.json\
-                ./workload 8 60 10000'
+                ./workload 8 60 3000'
         shell(cmd)
     max_mem = []
     exec_time = []
@@ -222,7 +222,7 @@ def tests(arguments):
     for i in range(arguments.iterations):
         print("iteration =",i)
         cmd = f'memory_usage_analyzer.py -o {dynamic_path} -r\
-            ../../src/reclaimer/squeezerdynamicconfig.json ./workload 8 60 10000'
+            ../../src/reclaimer/squeezerdynamicconfig.json ./workload 8 60 3000'
         shell(cmd)
     max_mem = []
     exec_time = []
