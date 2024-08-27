@@ -1,4 +1,7 @@
 # Instructions
+## Prerequisite
+This framework has dependencies on IAA RFC kernel patches. Please see instructions on building the kernel here. https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel
+
 ## Run in Baremetal
 1. Run
    ```
