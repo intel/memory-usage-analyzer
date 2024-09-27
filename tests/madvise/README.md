@@ -1,4 +1,6 @@
 # Instructions
+madvise-test suite allows benchmarking of zswap with different compression algorithms. It loads a data corpus (silesia.tar for example), swap-out all the pages, swap-in all the pages in teh meanwhile monitoring the swap-in and swap-out latency along with the compressed size using bpftool.
+
 ## Prerequisite
 #### Hardware
 * Intel 4th Gen Intel® Xeon® Scalable Processors or later with IAA enebled. Please see [IAA user guide](https://cdrdv2-public.intel.com/780887/354834_IAA_UserGuide_June23.pdf)for more details about IAA configuration.
