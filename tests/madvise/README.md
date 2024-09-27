@@ -1,5 +1,5 @@
 # Instructions
-madvise-test suite allows benchmarking of zswap with different compression algorithms. It loads a data corpus (silesia.tar for example), swap-out all the pages, swap-in all the pages in teh meanwhile monitoring the swap-in and swap-out latency along with the compressed size using bpftool.
+madvise-test suite allows benchmarking of zswap with different compression algorithms. It loads a data corpus (silesia.tar for example), swap-out all the pages, swap-in all the pages in the meanwhile monitoring the swap-in and swap-out latency along with the compressed size using bpftool.
 
 ## Prerequisite
 #### Hardware
