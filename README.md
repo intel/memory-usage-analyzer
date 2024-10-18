@@ -4,7 +4,7 @@ Intel® Memory Usage Analyzer can visualize the memory usage patterns of the wor
 
 
 ## Background
-DRAM being one of the significant cost contributor in the cloud infrastructure, cloud service providers are deploying different memory-tiering solutions[^2] [^3] [^4]. Given the  workload and infrastructure diversity, the challenge is to get a reasonable memory savings without a significant impact on the workload performance. Every workload may not benefit from memory-tiering. The workloads with large number of memory pages that are less frequently used (cold memory segments) and the high compressibility on these memory pages  are good candidates for memory-tiering to offload memory to a compressed tier or slower memory-tiers like SSD, NVMe etc.
+DRAM being one of the significant cost contributor in the cloud infrastructure, cloud service providers are deploying different memory-tiering solutions[^2] [^3] [^4]. Given the  workload and infrastructure diversity, the challenge is to get a reasonable memory savings without a significant impact on the workload performance. Every workload may not benefit from memory-tiering. The workloads with large number of memory pages that are less frequently used (warm/cold memory segments) and the high compressibility on these memory pages  are good candidates for memory-tiering to offload memory to a compressed tier or slower memory-tiers like SSD, NVMe etc.
 
 The Intel® Memory Usage Analyzer runs workloads under a cgroup[^2] to collect Cgroup stats across the timeline to provide a visualization these stats and summarizes them.
 
