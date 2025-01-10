@@ -5,7 +5,7 @@ madvise-test suite allows benchmarking of zswap with different compression algor
 #### Hardware
 * Intel 4th Gen Intel® Xeon® Scalable Processors or later with IAA enebled. Please see [IAA user guide](https://cdrdv2-public.intel.com/780887/354834_IAA_UserGuide_June23.pdf)for more details about IAA configuration.
 #### Software
-This framework has dependencies on IAA RFC kernel patches. Please see [instructions on building the kernel right patch sets](https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel)
+This framework has dependencies on IAA RFC kernel patches. Please see [instructions on building the kernel with right patch sets]([https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel](https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-6.12-upstream-kernel))
 
 ## Run in Baremetal
 1. Run
