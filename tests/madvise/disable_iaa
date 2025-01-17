@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2025, Intel Corporation
+#Description: Disable all IAA devices
+
 
 IAX_CONFIG_PATH=/sys/bus/dsa/devices
 
@@ -10,6 +12,7 @@ IAX_BIND_WQ_PATH=/sys/bus/dsa/drivers/crypto/bind
 IAX_UNBIND_PATH=/sys/bus/dsa/drivers/idxd/unbind
 IAX_UNBIND_WQ_PATH=/sys/bus/dsa/drivers/crypto/unbind
 
+echo lzo > /sys/module/zswap/parameters/compressor
 #
 # count iax instances
 #
@@ -34,3 +37,9 @@ done
 
 rmmod iaa_crypto
 modprobe iaa_crypto
+
+
+
+
+
+
