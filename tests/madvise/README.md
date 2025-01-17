@@ -1,11 +1,13 @@
-# Instructions
-madvise_test is a framework for zswap performance benchmarking with IAA. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
+# Introducution
+zswap performance benchmarking with IAA uses madvise() system call and MADV_PAGEOUT. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
+
 1. benchmark single page
-2. benchmark with IAA batching.
+2. benchmark with IAA batching to take advantage of parallel processing in IAA.
 
 ## Prerequisites
-1. Platform with Intel Xeon 4th generation (or higher) processor with  IAA.
-2. Kernel with IAA RFC patches. Please see instructions on building the kernel [here](https://wiki.ith.intel.com/display/SF/IAA+Memory-Tiering).
+1. Platform with Intel Xeon 4th generation (or higher) processor and IAA.
+2. [Memory Usage Analyzer Framework](https://github.com/intel/memory-usage-analyzer/tree/main?tab=readme-ov-file#install_
+3. Kernel with IAA RFC patches. Please see instructions on building the kernel [here](https://wiki.ith.intel.com/display/SF/IAA+Memory-Tiering).
 
 ## Run single-page Microbenchmarks
 
