@@ -1,8 +1,11 @@
 # Instructions
-madvise_test loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics.
+madvise_test is a framework for zswap performance benchmarking with IAA. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
+1. benchmark single page
+2. benchmark with IAA batching.
 
 ## Prerequisites
-This framework has dependencies on IAA RFC kernel patches. Please see instructions on building the kernel [here](https://wiki.ith.intel.com/display/SF/IAA+Memory-Tiering).
+1. Platform with Intel Xeon 4th generation (or higher) processor with  IAA.
+2. Kernel with IAA RFC patches. Please see instructions on building the kernel [here](https://wiki.ith.intel.com/display/SF/IAA+Memory-Tiering).
 
 ## Run single-page Microbenchmarks
 
@@ -17,7 +20,7 @@ Collect data and generate reports for all the compressors for single-page. Depen
 ``` 
 This will generate a summary of the key metrics for each dataset. In addition to that more detailed data points like CDFs and a summary .xls will be generated under the results_* directory
 
-## Run Microbenchmarks with batching
+## Run Microbenchmarks with IAA batching
 Collect data and generate reports for all the compressors for batch processing. The list of compressors, datasets and batch sweep can be modifed as needed.
 ```
     # For all 4 devices` per socket
