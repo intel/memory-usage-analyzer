@@ -1,6 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2025, Intel Corporation
+#Description: Configure zswap
 
 # Enable zswap
 echo "Enabling zswap..."

@@ -1,17 +1,24 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2025, Intel Corporation
+#Description: Wrapper which runs madvise workload and collect bpftraces
 
 # Define the location of the swap file
 SWAP="silesia.tar"
 COMP=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null)
 CORE_FREQUENCY=2500
+CBATCH=1
+DBATCH=0
+MTHP="4kB"
 
 
-while getopts "f:t:" opt; do
+while getopts "f:t:c:d:m:" opt; do
   case $opt in
     f) CORE_FREQUENCY="$OPTARG" ;;
     t) SWAP="$OPTARG" ;;
+    c) CBATCH="$OPTARG" ;;
+    d) DBATCH="$OPTARG" ;;
+    m) MTHP="$OPTARG" ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
   esac
 done
@@ -19,7 +26,7 @@ done
 # Function to handle errors
 handle_error() {
     echo "Error: $1"
-    exit 1
+    #exit 1
 }
 
 
@@ -35,7 +42,10 @@ if [ ! -f "$SWAP" ] ; then
         "silesia.tar")
              echo "Downloading $SWAP from http://wanos.co/assets/silesia.tar"
              wget --no-check-certificate http://wanos.co/assets/silesia.tar || handle_error "Failed to download $SWAP" ;;
-          *) echo "Invalid file $SWAP" ;  exit 1 ;
+        "4300_all")
+             echo "using  $SWAP locally" ;;
+          *) echo "Invalid file $SWAP" ;  exit 1 ;;
+	     
      esac
 fi
 
@@ -53,26 +63,73 @@ if [ ! -f madvise_test ]; then
 fi
 
 # Turn off read-ahead to optimize performance
-echo 0 > /proc/sys/vm/page-cluster || handle_error "Failed to set page-cluster"
+#echo 0 > /proc/sys/vm/page-cluster || handle_error "Failed to set page-cluster"
 
+
+if [[ $COMP == 'deflate-iaa-canned' || $COMP == 'deflate-iaa-dynamic'||$COMP == 'deflate-iaa' ]]; then
+    echo "true" > /sys/kernel/mm/swap/singlemapped_ra_enabled
+else
+    echo "false" > /sys/kernel/mm/swap/singlemapped_ra_enabled
+    #CBATCH=1
+    #DBATCH=0
+fi
+
+echo ${DBATCH} > /proc/sys/vm/page-cluster || handle_error "Failed to set page-cluster"
+sysctl vm.compress-batchsize=${CBATCH}  || handle_error "Failed to set compress-batchsize"
 
 # Clear transparent huge pages configuration
 echo 'never' > /sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled || handle_error "Failed to clear hugepages-2048kB configuration"
 echo 'never' > /sys/kernel/mm/transparent_hugepage/enabled || handle_error "Failed to clear transparent_hugepage configuration"
 
+
+
+# Set mTHP
+mthp_sizes=('16kB' '32kB' '64kB' '128kB' '256kB' '512kB' '1024kB' '2048kB')
+IFS=',' read -a mthp_list <<< "$MTHP"
+#echo ${mthp_list[@]}
+
+for mthp in "${mthp_sizes[@]}"; do
+    echo 'never'> /sys/kernel/mm/transparent_hugepage/hugepages-${mthp}/enabled
+done
+
+max_mthp=0
+for mthp in "${mthp_list[@]}"; do
+    mthp=`echo $mthp | tr -d ' '`
+    if [[ ${mthp_sizes[@]} =~ ($mthp) ]] ; then
+        if [ $mthp != '4kB' ]; then
+            echo "configuring mthp ${mthp}"
+            echo 'always' > /sys/kernel/mm/transparent_hugepage/hugepages-${mthp}/enabled
+	fi
+    fi
+done
+
+
 # Calculate swap size and pages
 SZ=$(ls -s "$SWAP" | awk '{print $1}')
-NPGS=$(echo "scale=0; $SZ/4-1" | bc -l)
+PAGE_SIZE=${mthp_list[0]}
+PAGE_SIZE=4kB
+echo "page-size:${PAGE_SIZE}"
+PAGE_SIZE=$(echo ${PAGE_SIZE} | awk '{print substr($1,1,length($1)-2)}' )
+NPGS=$(echo "scale=0; $SZ/${PAGE_SIZE}" | bc -l)
+# change it to bytes
+PAGE_SIZE=$(( PAGE_SIZE * 1024))
 
+QAT_ENABLED=`bpftrace -l | grep qat_comp_alg_compress | wc -l`
 
-CMD="./madvise_test ${SWAP} ${NPGS}"
+CMD="./madvise_test ${SWAP} ${NPGS} ${PAGE_SIZE}"
+echo ${CMD}
 if [[ $COMP == 'deflate-iaa-canned' || $COMP == 'deflate-iaa-dynamic'||$COMP == 'deflate-iaa' ]];then
     COMP_STR="iaa_comp_acompress"
     DCOMP_STR="iaa_comp_adecompress"
     SZ_STR="arg0+68"
+    #SZ_STR="((struct acomp_req*)arg0)->dlen"
 elif [ $COMP == 'lzo-rle' ]; then
     COMP_STR="lzorle_scompress"
     DCOMP_STR="lzorle_sdecompress"
+    SZ_STR="arg4"
+elif [ $COMP == 'qat_deflate' ] &&  [ ${QAT_ENABLED} -gt 0 ]; then
+    COMP_STR="qat_comp_alg_compress"
+    DCOMP_STR="qat_comp_alg_decompress"
     SZ_STR="arg4"
 else
     COMP_STR="${COMP}_scompress"
@@ -80,14 +137,18 @@ else
     SZ_STR="arg4"
 fi
 
-PROG=`echo "kprobe:${COMP_STR} { @start=nsecs; @sz=${SZ_STR}; } kretprobe:${COMP_STR} { printf (\"C %d\\nR %d\\n\", nsecs-@start, *@sz); }
-            kprobe:${DCOMP_STR} { @start=nsecs; } kretprobe:${DCOMP_STR} { printf (\"D %d\\n\", nsecs-@start); }
-	    kprobe:handle_mm_fault /(arg1&0xfff) == 0/{@pf[cpu]=nsecs; if(arg2!=0x1254) {@pf[cpu]=0;}} kretprobe:handle_mm_fault {if(@pf[cpu]) {printf(\"P %d\\n\", nsecs-@pf[cpu]);} @pf[cpu]=0;}
-	    kprobe:swap_writepage { @start_swap_write=nsecs; } kretprobe:swap_writepage { printf (\"SW %d\\n\", nsecs-@start_swap_write); }
-	    kprobe:swap_read_folio { @start_swap_read=nsecs; } kretprobe:swap_read_folio { printf (\"SR %d\\n\", nsecs-@start_swap_read);}
-	    kprobe:zswap_compress { @start_zswap_comp=nsecs; @zsz=arg1;} kretprobe:zswap_compress { printf (\"ZC %d\\nZCSZ %d\\nZCR %d\\n\", nsecs-@start_zswap_comp, *(@zsz+8), retval&0x1);}
-	    kprobe:zswap_decompress { @start_zswap_decomp=nsecs; } kretprobe:zswap_decompress { printf (\"ZD %d\\n\", nsecs-@start_zswap_decomp);}
-	    END { clear(@pf); delete(@start); delete(@sz);}"`
+
+# TODO:  count errors from swap_crypto_acomp_compress_batch
+
+PROG=`echo "kprobe:${COMP_STR} { @start=nsecs; @sz=${SZ_STR}; } kretprobe:${COMP_STR} { printf (\"C %d\\nR %d\\n\", nsecs-@start, *@sz); } 
+            kprobe:${DCOMP_STR} { @start=nsecs; } kretprobe:${DCOMP_STR} { printf (\"D %d\\n\", nsecs-@start); } 
+
+	    kprobe:swap_writepage { @start_swap_write=nsecs; } kretprobe:swap_writepage { printf (\"SW %d\\n\", nsecs-@start_swap_write); } 
+	    kprobe:swap_read_folio { @start_swap_read=nsecs; } kretprobe:swap_read_folio { printf (\"SR %d\\n\", nsecs-@start_swap_read);} 
+
+	    END { delete(@start); delete(@sz);}"`
 
 perf stat -o perf_${COMP}.log bpftrace -e "${PROG}" -c "${CMD}" -o ${COMP}_output
 echo "Script completed successfully."
+
+

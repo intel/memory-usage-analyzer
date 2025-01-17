@@ -6,7 +6,7 @@
         "dev":"group0.0",
         "grouped_workqueues":[
           {
-            "dev":"wq0.0",
+            "dev":"wq1.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -70,7 +70,7 @@
         "dev":"group1.0",
         "grouped_workqueues":[
           {
-            "dev":"wq1.0",
+            "dev":"wq3.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -134,7 +134,7 @@
         "dev":"group2.0",
         "grouped_workqueues":[
           {
-            "dev":"wq2.0",
+            "dev":"wq5.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -198,7 +198,7 @@
         "dev":"group3.0",
         "grouped_workqueues":[
           {
-            "dev":"wq3.0",
+            "dev":"wq7.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -262,7 +262,7 @@
         "dev":"group4.0",
         "grouped_workqueues":[
           {
-            "dev":"wq4.0",
+            "dev":"wq9.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -326,7 +326,7 @@
         "dev":"group5.0",
         "grouped_workqueues":[
           {
-            "dev":"wq5.0",
+            "dev":"wq11.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -390,7 +390,7 @@
         "dev":"group6.0",
         "grouped_workqueues":[
           {
-            "dev":"wq6.0",
+            "dev":"wq13.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
@@ -454,7 +454,7 @@
         "dev":"group7.0",
         "grouped_workqueues":[
           {
-            "dev":"wq7.0",
+            "dev":"wq15.0",
             "mode":"dedicated",
             "size":128,
             "group_id":0,
