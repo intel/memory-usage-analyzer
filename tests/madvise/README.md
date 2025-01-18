@@ -1,5 +1,5 @@
 # Introducution
-zswap performance benchmarking with IAA uses madvise() system call and MADV_PAGEOUT. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
+zswap performance benchmarking with IAA uses madvise() system call with MADV_PAGEOUT. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
 
 1. benchmark single page
 2. benchmark with IAA batching to take advantage of parallel processing in IAA.
