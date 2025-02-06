@@ -28,7 +28,10 @@ done
 echo "Number of IAA device: $iaa_devices"
 
 # Configure IAA devices
-./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+if [ ${iaa_devices} -gt 0 ]; then
+    ./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+fi
+
 # Configure zswap and zram.
 ./enable_zswap.sh 
 # swap disk can be used instead of zram. However, zram will avoid any disk access overheads
@@ -37,7 +40,7 @@ echo "Number of IAA device: $iaa_devices"
 # Install bpftrace if it is not available
 if [ ! -f /usr/bin/bpftrace ]; then
     echo "Installing bpftrace..."
-    install bpftrace -y || handle_error "Failed to install bpftrace"
+    yum install bpftrace -y || handle_error "Failed to install bpftrace"
 fi
 
 # If QAT is avaialble in kernel, enable it as well
@@ -47,12 +50,17 @@ if [ ${QAT_ENABLED_IN_KERNEL} -gt 0 ]; then
 fi
 
 
-# Select compression algorithms.
-if [ ${QAT_ENABLED_IN_KERNEL} -gt 0 ]; then
-    comp_list=("deflate-iaa-canned" "deflate-iaa" "lz4" "qat_deflate" "zstd")
-else
-    comp_list=("deflate-iaa-canned" "deflate-iaa" "lz4" "zstd" )
+comp_list=()
+# Create the compression algorihm list. Keep the alphabetical order for easy reporting
+if [ ${iaa_devices} -gt 0 ]; then
+    comp_list+=("deflate-iaa-canned" "deflate-iaa")
 fi
+comp_list+=("lz4")
+if [ ${QAT_ENABLED_IN_KERNEL} -gt 0 ]; then
+	comp_list+=("qat_deflate")
+fi
+comp_list+=("zstd" )
+
 
 # Other possible values for compressors
 #comp_list=("deflate-iaa-canned" "deflate-iaa-dynamic" "deflate-iaa" "lz4" "lzo-rle" "lzo" "zstd" "qat_deflate")
