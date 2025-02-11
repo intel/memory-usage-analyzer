@@ -1,0 +1,157 @@
+ SPDX-License-Identifier: BSD-3-Clause
+ Copyright (c) 2025, Intel Corporation
+
+ ZSWAP IAA and ZSTD [batch] [de]compress latency and compressed length/ratio micro-benchmarks:
+ =============================================================================================
+
+ Micro-benchmarks Root Directory:
+ --------------------------------
+
+   memory-usage-analyzer/tests/madvise_tracepoints
+
+
+ Assumptions:
+ ------------
+ 1) We assume the kernel has been built with kernel tracepoints instrumentation
+    to measure zswap_[de]compress and zswap_batch_[de]compress latencies.
+    
+ 2) We assume the platform has Intel IAA.
+
+
+ Description:
+ ------------
+ These tests use an madvise based micro-benchmark, along with kernel traces to
+ get accurate measurements of ZSWAP [batch] [de]compress latencies, compressed
+ lengths and compression ratios.
+
+ The "silesia.tar" dataset is used for running the micro-benchmarks. The tests
+ will download and place "silesia.tar" in madvise_tracepoints/datasets using:
+
+   wget --no-check-certificate http://wanos.co/assets/silesia.tar
+
+ The tests are run with core frequency fixed at 2000 MHz, and measure the
+ following:
+ 
+ 1) IAA batch compression and decompression latencies, for these batch sizes
+    respectively:
+
+    IAA parallel compressions:
+      vm.compress-batchsize in [1 2 4 8 16 32]
+
+    IAA parallel decompressions:
+      vm.page-cluster in [0 1 2 3 4 5]
+
+    "deflate-iaa-canned" (Canned mode) is the IAA compression mode used, but the
+    scripts can be easily modified to run "deflate-iaa" (Fixed mode).
+
+    Single-page IAA compress/decompress latencies will be reported as
+    "cb1"/"db1" rows in the summary.
+   
+    cb = compress batch-size
+    db = decompress batch-size
+
+ 2) ZSTD compress and decompress latencies:
+
+    The tests will measure and report single-page zstd latencies for
+    [de]compress, using:
+
+      vm.compress-batchsize in [1]
+      vm.page-cluster in [0]
+ 
+
+ 3) IAA and ZSTD compress lengths, along with compression ratio computations.
+
+
+ Running the ZSWAP micro-benchmarks with IAA and ZSTD:
+ -----------------------------------------------------
+
+ We recommend rebooting the system so that vmstats, mthp stats, IAA wq_stats,
+ etc. are cleared before running the tests.
+
+
+ Step 1): Clone the tests git repo:
+
+
+   git clone https://github.com/intel/memory-usage-analyzer.git
+
+   pip install -e memory-usage-analyzer
+
+
+ Step 2): Go to the ZSWAP IAA micro-benchmarks directory:
+ 
+
+   cd memory-usage-analyzer/tests/madvise_tracepoints
+
+
+ Step 3): Configure IAA devices, WQs and iaa_crypto driver parameters.
+
+
+   Important note: This should be done **only once**.
+
+
+   cd memory-usage-analyzer/tests/madvise_tracepoints
+   
+   ./configure_iaa.sh
+
+
+ Step 4): Run latency tests (can be repeated as needed):
+
+
+   ./zswap_latency.sh
+
+
+ Step 5) Run compression lengths and compression ratio tests (can be repeated as
+         needed):
+
+
+   ./zswap_lengths.sh
+
+
+ Reports, summaries, logs:
+ -------------------------
+ The tests will generate these files/directories, all with timestamps:
+
+
+   latency_summaries.txt:
+   
+     Cumulative latency reports for test runs.
+
+     Important note: All latencies reported for batch_[de]compress are
+     normalized to be per-page. Hence the latency distributions across all rows
+     in the latency_summaries.txt can be accurately compared across compressors
+     and batch-sizes in an apples-to-apples manner.
+
+
+   compress_length_summaries.txt:
+
+     Cumulative reports compression length and ratio test summaries.
+
+     Important note: IAA batch compression lengths reported are sum of
+     compressed lengths of all pages in the batch. The kernel tracepoints report
+     aggregated batch compress lengths as well as aggregated original batch-size
+     lengths, in order for the scripts to calculate the compression ratio.
+
+
+   run.log:
+   
+     Detailed stats collected from the tests, including ZSWAP parameters and
+     iaa_crypto settings, vmstats, mTHP stats, IAA wq_stats and global_stats,
+     etc.
+
+
+   data/:
+   
+     Timestamp-prefixed per-compressor and per-batch-size data directories
+     containing kernel traces, csv files containing histograms, stdout, etc.
+
+
+   reports/:
+   
+     Timestamp-prefixed per-compressor and per-batch-size
+     [de]compress_latencies.txt, compress_lengths.txt.
+   
+
+  Example reports:
+  ----------------
+  The "madvise_tracepoints/sample_reports" directory has some example reports.
+

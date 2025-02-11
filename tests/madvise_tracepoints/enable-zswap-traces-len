@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025, Intel Corporation
+
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_compress/enable
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_decompress/enable
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress/enable
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_batch_decompress/enable
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_compress_len/enable
+echo 0 > /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress_len/enable
+
+echo > /sys/kernel/debug/tracing/trace
+
+echo 1 > /sys/kernel/debug/tracing/events/zswap/zswap_compress_len/enable
+echo 1 > /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress_len/enable
+
+# Set trace buffer on CPU 1 to 5GB:
+echo 10485760 > /sys/kernel/debug/tracing/per_cpu/cpu1/buffer_size_kb
+
+echo "Removing zswap hists"
+
+# zswap_compress_len
+echo '!hist:keys=cpu.buckets=10:sort=cpu:size=8192' >> /sys/kernel/debug/tracing/events/zswap/zswap_compress_len/trigger
+
+# zswap_compress_len_batch
+echo '!hist:keys=cpu.buckets=10:sort=cpu:size=8192' >> /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress_len/trigger
+
+echo "Enabling zswap hists"
+
+# zswap_compress_len
+echo 'hist:keys=cpu.buckets=10:sort=cpu:size=8192' >> /sys/kernel/debug/tracing/events/zswap/zswap_compress_len/trigger
+
+# zswap_compress_len_batch
+echo 'hist:keys=cpu.buckets=10:sort=cpu:size=8192' >> /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress_len/trigger
+
