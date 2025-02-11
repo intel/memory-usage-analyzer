@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025, Intel Corporation
+
+echo "Dumping zswap compress length hists"
+
+echo -e "\n######\nzswap_compress_len hists:\n"
+# zswap_compress_len
+cat /sys/kernel/debug/tracing/events/zswap/zswap_compress_len/hist
+
+echo -e "\n######\nzswap_batch_compress_len hists:\n"
+# zswap_batch_compress_len
+cat /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress_len/hist
+

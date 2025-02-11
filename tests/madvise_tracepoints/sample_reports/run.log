@@ -1,0 +1,3735 @@
+
+******************************************************************************************
+
+Starting ZSWAP [de]compress latency tests with core freq 2000 MHz at 20250210-171022:
+
+================================================================================
+Start BATCH-COMPRESS-LATENCY runs for folio size 4kB, deflate-iaa-canned:
+COMPRESS batch-size in [1 2 4 8 16 32]
+
+Run directory data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp
+================================================================================
+
+deflate-iaa-canned vm.compress-batchsize 1...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb1/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb1/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb1/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb1/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 50574
+zswpin 50574
+pswpout 1059
+pswpin 1059
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 53495
+pgfault 1009498
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 1059
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 51639
+  comp_bytes: 97973069
+  decomp_calls: 50586
+  decomp_bytes: 97973554
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 50586
+    decomp_bytes: 97973554
+
+    name: iaa_crypto
+    comp_calls: 51633
+    comp_bytes: 97972560
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 51639
+  total_decomp_calls: 50586
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 97973069
+  total_decomp_bytes_in: 97973554
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 1059
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       985Mi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 2...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 2
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb2/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb2/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb2/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb2/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 101148
+zswpin 101148
+pswpout 2118
+pswpin 2118
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 105240
+pgfault 1151488
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 2118
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 103272
+  comp_bytes: 195945629
+  decomp_calls: 101160
+  decomp_bytes: 195946114
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 101160
+    decomp_bytes: 195946114
+
+    name: iaa_crypto
+    comp_calls: 103266
+    comp_bytes: 195945120
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 103272
+  total_decomp_calls: 101160
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 195945629
+  total_decomp_bytes_in: 195946114
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 2118
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 2
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       992Mi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 4...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 4
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb4/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb4/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb4/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb4/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 151722
+zswpin 151722
+pswpout 3177
+pswpin 3177
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 156985
+pgfault 1292967
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 3177
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 154905
+  comp_bytes: 293918189
+  decomp_calls: 151734
+  decomp_bytes: 293918674
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 151734
+    decomp_bytes: 293918674
+
+    name: iaa_crypto
+    comp_calls: 154899
+    comp_bytes: 293917680
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 154905
+  total_decomp_calls: 151734
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 293918189
+  total_decomp_bytes_in: 293918674
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 3177
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 4
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       998Mi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 8...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 8
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb8/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb8/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb8/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb8/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 202296
+zswpin 202296
+pswpout 4236
+pswpin 4236
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 208730
+pgfault 1434296
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 4236
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 206538
+  comp_bytes: 391890749
+  decomp_calls: 202308
+  decomp_bytes: 391891234
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 202308
+    decomp_bytes: 391891234
+
+    name: iaa_crypto
+    comp_calls: 206532
+    comp_bytes: 391890240
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 206538
+  total_decomp_calls: 202308
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 391890749
+  total_decomp_bytes_in: 391891234
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 4236
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 8
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 16...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 16
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb16/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb16/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb16/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb16/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 252870
+zswpin 252870
+pswpout 5295
+pswpin 5295
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 260475
+pgfault 1575600
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 5295
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 258171
+  comp_bytes: 489863309
+  decomp_calls: 252882
+  decomp_bytes: 489863794
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 252882
+    decomp_bytes: 489863794
+
+    name: iaa_crypto
+    comp_calls: 258165
+    comp_bytes: 489862800
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 258171
+  total_decomp_calls: 252882
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 489863309
+  total_decomp_bytes_in: 489863794
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 5295
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 16
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 32...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 32
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb32/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb32/lat
+Event type: zswap_batch_compress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb32/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_pc0_comp/cb32/lat/zswap_batch_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 303444
+zswpin 303444
+pswpout 6354
+pswpin 6354
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 312220
+pgfault 1716822
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 6354
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 309804
+  comp_bytes: 587835869
+  decomp_calls: 303456
+  decomp_bytes: 587836354
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 303456
+    decomp_bytes: 587836354
+
+    name: iaa_crypto
+    comp_calls: 309798
+    comp_bytes: 587835360
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 309804
+  total_decomp_calls: 303456
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 587835869
+  total_decomp_bytes_in: 587836354
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 6354
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 32
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+================================================================================
+Start BATCH-DECOMPRESS-LATENCY runs for folio size 4kB, deflate-iaa-canned:
+DECOMPRESS page-cluster in [0 1 2 3 4 5]
+
+Run directory data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp
+================================================================================
+
+deflate-iaa-canned vm.page-cluster 0 (decompress batchsize 1)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db1/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db1/lat
+Event type: zswap_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db1/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db1/lat/zswap_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 354018
+zswpin 354018
+pswpout 7413
+pswpin 7413
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 363966
+pgfault 1875593
+swap_ra 0
+swap_ra_hit 0
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 7413
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 361437
+  comp_bytes: 685808429
+  decomp_calls: 354030
+  decomp_bytes: 685808914
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 354030
+    decomp_bytes: 685808914
+
+    name: iaa_crypto
+    comp_calls: 361431
+    comp_bytes: 685807920
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 361437
+  total_decomp_calls: 354030
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 685808429
+  total_decomp_bytes_in: 685808914
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 7413
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.page-cluster 1 (decompress batchsize 2)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 1
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db2/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db2/lat
+Event type: zswap_batch_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db2/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db2/lat/zswap_batch_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 404592
+zswpin 404592
+pswpout 8472
+pswpin 8472
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 389839
+pgfault 2018192
+swap_ra 25872
+swap_ra_hit 25872
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 8472
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 413070
+  comp_bytes: 783780989
+  decomp_calls: 404604
+  decomp_bytes: 783781474
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 404604
+    decomp_bytes: 783781474
+
+    name: iaa_crypto
+    comp_calls: 413064
+    comp_bytes: 783780480
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 413070
+  total_decomp_calls: 404604
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 783780989
+  total_decomp_bytes_in: 783781474
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 8472
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 1
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.page-cluster 2 (decompress batchsize 4)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 2
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db4/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db4/lat
+Event type: zswap_batch_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db4/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db4/lat/zswap_batch_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 455166
+zswpin 455166
+pswpout 9531
+pswpin 9531
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 402776
+pgfault 2159776
+swap_ra 64680
+swap_ra_hit 64680
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 9531
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 464703
+  comp_bytes: 881753549
+  decomp_calls: 455178
+  decomp_bytes: 881754034
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 455178
+    decomp_bytes: 881754034
+
+    name: iaa_crypto
+    comp_calls: 464697
+    comp_bytes: 881753040
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 464703
+  total_decomp_calls: 455178
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 881753549
+  total_decomp_bytes_in: 881754034
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 9531
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 2
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.page-cluster 3 (decompress batchsize 8)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 3
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db8/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db8/lat
+Event type: zswap_batch_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db8/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db8/lat/zswap_batch_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 505740
+zswpin 505740
+pswpout 10590
+pswpin 10590
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 409245
+pgfault 2301140
+swap_ra 109956
+swap_ra_hit 109956
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 10590
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 516336
+  comp_bytes: 979726109
+  decomp_calls: 505752
+  decomp_bytes: 979726594
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 505752
+    decomp_bytes: 979726594
+
+    name: iaa_crypto
+    comp_calls: 516330
+    comp_bytes: 979725600
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 516336
+  total_decomp_calls: 505752
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 979726109
+  total_decomp_bytes_in: 979726594
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 10590
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 3
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.page-cluster 4 (decompress batchsize 16)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 4
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db16/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db16/lat
+Event type: zswap_batch_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db16/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db16/lat/zswap_batch_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 556314
+zswpin 556314
+pswpout 11649
+pswpin 11649
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 412482
+pgfault 2442637
+swap_ra 158464
+swap_ra_hit 158464
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 11649
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 567969
+  comp_bytes: 1077698669
+  decomp_calls: 556326
+  decomp_bytes: 1077699154
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 556326
+    decomp_bytes: 1077699154
+
+    name: iaa_crypto
+    comp_calls: 567963
+    comp_bytes: 1077698160
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 567969
+  total_decomp_calls: 556326
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1077698669
+  total_decomp_bytes_in: 1077699154
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 11649
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 4
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.page-cluster 5 (decompress batchsize 32)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 5
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-deflate-iaa-canned
+Results directory: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db32/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db32/lat
+Event type: zswap_batch_decompress
+Filename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db32/lat/lat-deflate-iaa-canned.trace
+Outfilename: data/20250210-171022_EMR_2000_deflate-iaa-canned_mthp4k_cb1_decomp/db32/lat/zswap_batch_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 606888
+zswpin 606888
+pswpout 12708
+pswpin 12708
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 414103
+pgfault 2583972
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 12708
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 619602
+  comp_bytes: 1175671229
+  decomp_calls: 606900
+  decomp_bytes: 1175671714
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 606900
+    decomp_bytes: 1175671714
+
+    name: iaa_crypto
+    comp_calls: 619596
+    comp_bytes: 1175670720
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 619602
+  total_decomp_calls: 606900
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1175671229
+  total_decomp_bytes_in: 1175671714
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 12708
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 5
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+================================================================================
+Start BATCH-COMPRESS-LATENCY runs for folio size 4kB, zstd:
+COMPRESS batch-size in [1]
+
+Run directory data/20250210-171022_EMR_2000_zstd_mthp4k_pc0_comp
+================================================================================
+
+zstd vm.compress-batchsize 1...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = false
+
+ZSWAP Compressor = zstd
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-zstd
+Results directory: data/20250210-171022_EMR_2000_zstd_mthp4k_pc0_comp/cb1/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_zstd_mthp4k_pc0_comp/cb1/lat
+Event type: zswap_compress
+Filename: data/20250210-171022_EMR_2000_zstd_mthp4k_pc0_comp/cb1/lat/lat-zstd.trace
+Outfilename: data/20250210-171022_EMR_2000_zstd_mthp4k_pc0_comp/cb1/lat/zswap_compress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 657758
+zswpin 657758
+pswpout 13471
+pswpin 13471
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 465848
+pgfault 2743033
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 13471
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 619602
+  comp_bytes: 1175671229
+  decomp_calls: 606900
+  decomp_bytes: 1175671714
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 606900
+    decomp_bytes: 1175671714
+
+    name: iaa_crypto
+    comp_calls: 619596
+    comp_bytes: 1175670720
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 619602
+  total_decomp_calls: 606900
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1175671229
+  total_decomp_bytes_in: 1175671714
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 12708
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = zstd
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = false
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        13Gi       489Gi        22Mi       1.0Gi       487Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+================================================================================
+Start BATCH-DECOMPRESS-LATENCY runs for folio size 4kB, zstd:
+DECOMPRESS page-cluster in [0]
+
+Run directory data/20250210-171022_EMR_2000_zstd_mthp4k_cb1_decomp
+================================================================================
+
+zstd vm.page-cluster 0 (decompress batchsize 1)...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = false
+
+ZSWAP Compressor = zstd
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: lat-zstd
+Results directory: data/20250210-171022_EMR_2000_zstd_mthp4k_cb1_decomp/db1/lat
+========================================
+----------------------------------------
+Run ./test-lat
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-lat
+----------------------------------------
+----------------------------------------
+calcpercent.py lat
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_lat_csv.py
+----------------------------------------
+Dir: data/20250210-171022_EMR_2000_zstd_mthp4k_cb1_decomp/db1/lat
+Event type: zswap_decompress
+Filename: data/20250210-171022_EMR_2000_zstd_mthp4k_cb1_decomp/db1/lat/lat-zstd.trace
+Outfilename: data/20250210-171022_EMR_2000_zstd_mthp4k_cb1_decomp/db1/lat/zswap_decompress_lat_stats.csv
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 708628
+zswpin 708628
+pswpout 14234
+pswpin 14234
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 517593
+pgfault 2894400
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 14234
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 619602
+  comp_bytes: 1175671229
+  decomp_calls: 606900
+  decomp_bytes: 1175671714
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 606900
+    decomp_bytes: 1175671714
+
+    name: iaa_crypto
+    comp_calls: 619596
+    comp_bytes: 1175670720
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 619602
+  total_decomp_calls: 606900
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1175671229
+  total_decomp_bytes_in: 1175671714
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 12708
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = zstd
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = false
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        13Gi       489Gi        22Mi       1.0Gi       487Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+
+Summary (all latencies are normalized per-page):
+------------------------------------------------
+
+
+deflate-iaa-canned:
+-------------------
+
+zswap_batch_compress_latency_per-page_(ns)_deflate-iaa-canned_4k_pc_0       count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99           
+cb1                                                                         51633   3381   3397   3410   3423   3438   3457   3484   3519   3548   3571   3592   3611   3628   3644   3661   3678   3695   3716   3746   3778   3799       
+cb2                                                                         25824   1865   1886   1901   1915   1927   1936   1945   1954   1962   1971   1981   1990   2000   2010   2021   2033   2046   2060   2080   2104   2119       
+cb4                                                                         12917   1520   1531   1538   1544   1548   1552   1556   1560   1564   1568   1572   1577   1581   1586   1592   1599   1607   1616   1627   1640   1653       
+cb8                                                                          6464   1350   1356   1360   1363   1365   1368   1371   1373   1375   1378   1380   1382   1385   1388   1391   1394   1397   1401   1407   1414   1420       
+cb16                                                                         6464   1346   1351   1355   1358   1361   1364   1366   1368   1371   1373   1375   1377   1380   1382   1385   1388   1391   1395   1401   1408   1415       
+cb32                                                                         6464   1346   1352   1356   1359   1362   1364   1367   1369   1371   1374   1376   1379   1381   1384   1387   1390   1393   1397   1402   1409   1415       
+
+zswap_decompress_latency_per-page_(ns)_deflate-iaa-canned_4k_cb_1           count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99           
+db1                                                                         50574   2292   2357   2409   2469   2563   2672   2786   2873   2939   2999   3061   3129   3207   3300   3405   3540   3832   4300   4521   4687   4785       
+
+zswap_batch_decompress_latency_per-page_(ns)_deflate-iaa-canned_4k_cb_1      count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99           
+db2                                                                         25415   1345   1384   1419   1458   1509   1567   1621   1659   1690   1719   1752   1790   1840   1911   1973   2038   2220   2445   2546   2674   2790       
+db4                                                                         12760    910    936    958    979    999   1023   1045   1067   1086   1103   1120   1139   1165   1202   1243   1291   1391   1530   1611   1711   2431       
+db8                                                                          6403    644    661    674    691    710    728    744    755    764    773    784    796    811    833    868    905    953   1004   1064   1155   1890       
+db16                                                                         6372    648    660    671    684    704    731    747    758    767    776    785    796    811    833    870    909    949    991   1055   1126   1325       
+db32                                                                         6362    641    656    669    682    702    723    738    751    761    771    781    792    808    831    865    903    948   1000   1051   1117   1158       
+
+
+zstd:
+-----
+
+zswap_compress_latency_per-page_(ns)_zstd_4k_pc_0                           count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99           
+cb1                                                                         51633  19437  20674  21611  22898  24944  28976  33521  37488  40692  42421  43645  44712  45765  47061  48881  51852  54821  58246  61349  64829  65728       
+
+zswap_decompress_latency_per-page_(ns)_zstd_4k_cb_1                         count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99           
+db1                                                                         50870   7933   8453   8783   9175   9771  10469  10763  10941  11091  11235  11415  11678  12065  12634  13170  13500  13837  14433  15517  16523  17135       
+
+
+Finished ZSWAP [de]compress latency tests with core freq 2000 MHz at 20250210-171022.
+
+******************************************************************************************
+
+
+******************************************************************************************
+
+Starting ZSWAP compressed lengths/ratio tests with core freq 2000 MHz at 20250210-171427:
+
+================================================================================
+Start BATCH-COMPRESS-LENGTH-RATIO runs for folio size 4kB, deflate-iaa-canned:
+COMPRESS batch-size in [1 2 4 8 16 32]
+
+Run directory data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths
+================================================================================
+
+deflate-iaa-canned vm.compress-batchsize 1...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb1/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb1/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb1/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb1/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb1/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 51633
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 759202
+zswpin 759202
+pswpout 15293
+pswpin 15293
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 569338
+pgfault 3048778
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 15293
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 671235
+  comp_bytes: 1273643789
+  decomp_calls: 657474
+  decomp_bytes: 1273644274
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 657474
+    decomp_bytes: 1273644274
+
+    name: iaa_crypto
+    comp_calls: 671229
+    comp_bytes: 1273643280
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 671235
+  total_decomp_calls: 657474
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1273643789
+  total_decomp_bytes_in: 1273644274
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 13767
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.0Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 2...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 2
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb2/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb2/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb2/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb2/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb2/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 25824
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 809776
+zswpin 809776
+pswpout 16352
+pswpin 16352
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 621083
+pgfault 3188675
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 16352
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 722868
+  comp_bytes: 1371616349
+  decomp_calls: 708048
+  decomp_bytes: 1371616834
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 708048
+    decomp_bytes: 1371616834
+
+    name: iaa_crypto
+    comp_calls: 722862
+    comp_bytes: 1371615840
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 722868
+  total_decomp_calls: 708048
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1371616349
+  total_decomp_bytes_in: 1371616834
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 14826
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 2
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.1Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 4...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 4
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb4/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb4/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb4/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb4/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb4/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 12917
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 860350
+zswpin 860350
+pswpout 17411
+pswpin 17411
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 672828
+pgfault 3328031
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 17411
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 774501
+  comp_bytes: 1469588909
+  decomp_calls: 758622
+  decomp_bytes: 1469589394
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 758622
+    decomp_bytes: 1469589394
+
+    name: iaa_crypto
+    comp_calls: 774495
+    comp_bytes: 1469588400
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 774501
+  total_decomp_calls: 758622
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1469588909
+  total_decomp_bytes_in: 1469589394
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 15885
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 4
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.1Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 8...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 8
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb8/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb8/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb8/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb8/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb8/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 6464
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 910924
+zswpin 910924
+pswpout 18470
+pswpin 18470
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 724573
+pgfault 3467224
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 18470
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 826134
+  comp_bytes: 1567561469
+  decomp_calls: 809196
+  decomp_bytes: 1567561954
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 809196
+    decomp_bytes: 1567561954
+
+    name: iaa_crypto
+    comp_calls: 826128
+    comp_bytes: 1567560960
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 826134
+  total_decomp_calls: 809196
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1567561469
+  total_decomp_bytes_in: 1567561954
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 16944
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 8
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.1Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 16...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 16
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb16/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb16/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb16/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb16/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb16/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 6464
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 961498
+zswpin 961498
+pswpout 19529
+pswpin 19529
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 776318
+pgfault 3606461
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 19529
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 877767
+  comp_bytes: 1665534029
+  decomp_calls: 859770
+  decomp_bytes: 1665534514
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 859770
+    decomp_bytes: 1665534514
+
+    name: iaa_crypto
+    comp_calls: 877761
+    comp_bytes: 1665533520
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 877767
+  total_decomp_calls: 859770
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1665534029
+  total_decomp_bytes_in: 1665534514
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 18003
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 16
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.1Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+deflate-iaa-canned vm.compress-batchsize 32...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 32
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = true
+
+ZSWAP Compressor = deflate-iaa-canned
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-deflate-iaa-canned
+Results directory: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb32/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb32/len
+Event type: zswap_batch_compress_len
+Filename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb32/len/len-deflate-iaa-canned.trace
+avgfilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb32/len/zswap_batch_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_deflate-iaa-canned_mthp4k_pc0_lengths/cb32/len/zswap_batch_compress_len_size_stats.csv
+total_dlen: 102310224
+count: 6464
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.067132
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 1012072
+zswpin 1012072
+pswpout 20588
+pswpin 20588
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 828063
+pgfault 3745666
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 20588
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 929400
+  comp_bytes: 1763506589
+  decomp_calls: 910344
+  decomp_bytes: 1763507074
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 910344
+    decomp_bytes: 1763507074
+
+    name: iaa_crypto
+    comp_calls: 929394
+    comp_bytes: 1763506080
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 929400
+  total_decomp_calls: 910344
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1763506589
+  total_decomp_bytes_in: 1763507074
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 19062
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = deflate-iaa-canned
+vm.compress-batchsize = 32
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = true
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        12Gi       489Gi        22Mi       1.1Gi       488Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+================================================================================
+Start BATCH-COMPRESS-LENGTH-RATIO runs for folio size 4kB, zstd:
+COMPRESS batch-size in [1]
+
+Run directory data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths
+================================================================================
+
+zstd vm.compress-batchsize 1...
+Check for swap device
+found 1 swap devices
+
+================================================================================
+                           ZSWAP SETTINGS
+================================================================================
+
+Reclaim compress batchsize = 1
+Swapin readahead page-cluster = 0
+Singlemapped path readahead = false
+
+ZSWAP Compressor = zstd
+ZSWAP zpool allocator = zsmalloc
+iaa_crypto sync mode = async
+iaa_crypto verify_compress = 0
+
+================================================================================
+                           (m)THP SETTINGS
+================================================================================
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-SIZE THP ENABLED = always madvise [never]
+PMD-SIZE THP DEFRAG = always defer defer+madvise madvise [never]
+
+================================================================================
+
+========================================
+Test: len-zstd
+Results directory: data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths/cb1/len
+========================================
+----------------------------------------
+Run ./test-len
+----------------------------------------
+----------------------------------------
+dump-zswap-hists-len
+----------------------------------------
+----------------------------------------
+calcpercent.py len
+----------------------------------------
+----------------------------------------
+cp /sys/kernel/debug/tracing/trace
+----------------------------------------
+----------------------------------------
+trace_to_comp_avg.py
+----------------------------------------
+Dir: data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths/cb1/len
+Event type: zswap_compress_len
+Filename: data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths/cb1/len/len-zstd.trace
+avgfilename: data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths/cb1/len/zswap_compress_len_comp_avg.csv
+sizefilename: data/20250210-171427_EMR_2000_zstd_mthp4k_pc0_lengths/cb1/len/zswap_compress_len_size_stats.csv
+total_dlen: 90995670
+count: 51633
+total_size: 211488768
+Compression ratio = total_size / total_dlen: 2.324163
+
+--------------------------------------------------------------------------------
+VMSTATS, MTHP STATS, ZSWAP STATS:
+--------------------------------------------------------------------------------
+zswpout 1062942
+zswpin 1062942
+pswpout 21351
+pswpin 21351
+thp_swpout 0
+thp_swpout_fallback 0
+pgmajfault 879808
+pgfault 3903523
+swap_ra 208588
+swap_ra_hit 208588
+
+zswap_reject_alloc_fail 0
+zswap_reject_compress_fail 21351
+zswap_reject_reclaim_fail 0
+zswap_reject_compress_poor 0
+zswap_reject_kmemcache_fail 0
+zswap_pool_total_size 0
+zswap_pool_limit_hit 0
+
+IAA device/wq stats and global stats:
+iaa device:
+  id: 1
+  n_wqs: 2
+  comp_calls: 929400
+  comp_bytes: 1763506589
+  decomp_calls: 910344
+  decomp_bytes: 1763507074
+  wqs:
+    name: iaa_crypto
+    comp_calls: 6
+    comp_bytes: 509
+    decomp_calls: 910344
+    decomp_bytes: 1763507074
+
+    name: iaa_crypto
+    comp_calls: 929394
+    comp_bytes: 1763506080
+    decomp_calls: 0
+    decomp_bytes: 0
+
+iaa device:
+  id: 3
+  n_wqs: 2
+  comp_calls: 0
+  comp_bytes: 0
+  decomp_calls: 0
+  decomp_bytes: 0
+  wqs:
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+    name: iaa_crypto
+    comp_calls: 0
+    comp_bytes: 0
+    decomp_calls: 0
+    decomp_bytes: 0
+
+global stats:
+  total_comp_calls: 929400
+  total_decomp_calls: 910344
+  total_sw_comp_calls: 0
+  total_sw_decomp_calls: 0
+  total_comp_bytes_out: 1763506589
+  total_decomp_bytes_in: 1763507074
+  total_completion_einval_errors: 0
+  total_completion_timeout_errors: 0
+  total_completion_comp_buf_overflow_errors: 19062
+
+
+--------------------------------------------------------------------------------
+********************************************************************************
+                           COMPRESSOR, mTHP SETTINGS IN EFFECT
+********************************************************************************
+
+/sys/module/zswap/parameters/compressor = zstd
+vm.compress-batchsize = 1
+vm.page-cluster = 0
+/sys/kernel/mm/swap/singlemapped_ra_enabled = false
+
+hugepages-16kB = always inherit madvise [never]
+hugepages-32kB = always inherit madvise [never]
+hugepages-64kB = always inherit madvise [never]
+hugepages-128kB = always inherit madvise [never]
+hugepages-256kB = always inherit madvise [never]
+hugepages-512kB = always inherit madvise [never]
+hugepages-1024kB = always inherit madvise [never]
+hugepages-2048kB = always inherit madvise [never]
+
+PMD-size THP enabled = always madvise [never]
+PMD-size THP defrag = always defer defer+madvise madvise [never]
+
+********************************************************************************
+
+--------------------------------------------------------------------------------
+After running workload: swapon --noheadings and free -h:
+/dev/zram0 partition 151.1G  64K   -2
+
+              total        used        free      shared  buff/cache   available
+Mem:          503Gi        13Gi       489Gi        22Mi       1.1Gi       487Gi
+Swap:         151Gi       0.0Ki       151Gi
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+
+Done!
+================================================================================
+
+
+
+Summary (all compressed lengths are totals per batch):
+------------------------------------------------------
+
+
+deflate-iaa-canned:
+-------------------
+
+zswap_batch_compress_length_(bytes)_deflate-iaa-canned_4k_pc_0              count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99 comp_ratio
+cb1                                                                         51633    896    964   1008   1065   1145   1391   1638   1785   1870   1932   1993   2055   2142   2266   2426   2541   3131   3377   3673   4096   4096       2.07
+cb2                                                                         25824   1836   1940   2018   2124   2293   2866   3293   3600   3735   3869   3972   4081   4246   4508   4841   5039   6239   6699   7348   7931   8192       2.07
+cb4                                                                         12917   3739   3905   4048   4253   4679   5764   6608   7212   7491   7751   7932   8111   8399   8967   9647  10012  12268  13309  14673  15711  16384       2.07
+cb8                                                                          6464   7570   7853   8114   8525   9593  11596  13231  14420  15026  15514  15837  16130  16637  17797  19279  19948  23884  26393  29281  31021  32768       2.07
+cb16                                                                         6464   7570   7853   8114   8525   9593  11596  13231  14420  15026  15514  15837  16130  16637  17797  19279  19948  23884  26393  29281  31021  32768       2.07
+cb32                                                                         6464   7570   7853   8114   8525   9593  11596  13231  14420  15026  15514  15837  16130  16637  17797  19279  19948  23884  26393  29281  31021  32768       2.07
+
+
+zstd:
+-----
+
+zswap_compress_length_(bytes)_zstd_4k_pc_0                                  count   0.05   0.10   0.15   0.20   0.25   0.30   0.35   0.40   0.45   0.50   0.55   0.60   0.65   0.70   0.75   0.80   0.85   0.90   0.95   0.98   0.99 comp_ratio
+cb1                                                                         51633    573    630    673    736    916   1168   1462   1605   1662   1713   1761   1814   1922   2037   2188   2527   2935   3143   3610   3853   4096       2.32
+
+
+Finished ZSWAP compressed lengths/ratio tests with core freq 2000 MHz at 20250210-171427.
+
+******************************************************************************************
+

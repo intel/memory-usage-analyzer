@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025, Intel Corporation
+
+./enable-zswap-traces-len
+
+echo "Running memory_madvise datasets/silesia.tar (compress/decompress):"
+
+numactl -C 1 ./memory_madvise_readpages datasets/silesia.tar

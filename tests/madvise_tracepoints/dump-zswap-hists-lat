@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2025, Intel Corporation
+
+echo "Dumping zswap latency hists"
+
+echo -e "\n######\nzswap_compress hists:\n"
+# zswap_compress
+cat /sys/kernel/debug/tracing/events/zswap/zswap_compress/hist
+
+echo -e "\n######\nzswap_decompress hists:\n"
+# zswap_decompress
+cat /sys/kernel/debug/tracing/events/zswap/zswap_decompress/hist
+
+echo -e "\n######\nzswap_batch_compress hists:\n"
+# zswap_batch_compress
+cat /sys/kernel/debug/tracing/events/zswap/zswap_batch_compress/hist
+
+echo -e "\n######\nzswap_batch_decompress hists:\n"
+# zswap_batch_decompress
+cat /sys/kernel/debug/tracing/events/zswap/zswap_batch_decompress/hist
+
