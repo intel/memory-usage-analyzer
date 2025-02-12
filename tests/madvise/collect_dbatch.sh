@@ -8,16 +8,6 @@
 # process arguments
 preserve_logs=${1:-0};shift
 
-# Configuration
-# Configure all 4 IAA devices
-#./enable_kernel_iaa.sh 0 1 4 8 2 async
-# Configgure only 1 IAA device depending on the SKU
-./enable_kernel_iaa.sh 0 1 1 8 2 async
-# Configure zswap and zram.
-# swap disk can be used instead of zram. However, zram will avoid any disk access overheads
-./enable_zswap.sh
-./enable_zram.sh
-
 comp_list=("deflate-iaa")
 dataset_list=("silesia.tar")
 freq_list=("2000" )
