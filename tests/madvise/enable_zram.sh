@@ -5,7 +5,7 @@
 
 # Enable zram 
 MAX_MEM_SIZE=$( free | grep Mem | awk '{print $2}' )
-MWX_MEM_SIZE=$(( MAX_MEM_SIZE * 1024 ))
+MAX_MEM_SIZE=$(( MAX_MEM_SIZE * 1024 ))
 # 30% of the max.memory
 ZRAM_RATIO=0.3
 ZRAM_DISK_SIZE=`echo "${MAX_MEM_SIZE}*${ZRAM_RATIO}" | bc`
