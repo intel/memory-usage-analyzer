@@ -28,7 +28,7 @@ Intel® Memory Usage Analyzer can
   * cgroup v2 - add kernel parameter "systemd.unified_cgroup_hierarchy=1"
   * enable pressure stall information - add kernel parameter "psi=1"
 * Linux perf tool
-* Python >= 3.7
+* Python >= 3.9
 
 ## Install
 
