@@ -53,7 +53,7 @@ fi
 comp_list=()
 # Create the compression algorihm list. Keep the alphabetical order for easy reporting
 if [ ${iaa_devices} -gt 0 ]; then
-    comp_list+=("deflate-iaa-canned" "deflate-iaa")
+    comp_list+=("deflate-iaa")
 fi
 comp_list+=("lz4")
 if [ ${QAT_ENABLED_IN_KERNEL} -gt 0 ]; then
