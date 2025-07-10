@@ -14,7 +14,7 @@ zswap performance benchmarking with IAA uses madvise() system call with MADV_PAG
    source virtualenv/bin/activate
    git clone https://github.com/intel/memory-usage-analyzer.git
    pip install -e memory-usage-analyzer
-   ``
+   ```
 
 ## Run single-page Microbenchmarks
 
