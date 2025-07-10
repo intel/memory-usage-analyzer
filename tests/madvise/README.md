@@ -8,6 +8,13 @@ zswap performance benchmarking with IAA uses madvise() system call with MADV_PAG
 1. Platform with Intel Xeon 4th generation (or higher) processor and IAA.
 2. [Memory Usage Analyzer Framework](https://github.com/intel/memory-usage-analyzer/tree/main?tab=readme-ov-file#install_)
 3. Kernel with IAA RFC patches. Please see instructions on building the kernel [here](https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel).
+4. Set up the workspace and dependencies
+   ```
+   python -m venv virtualenv
+   source virtualenv/bin/activate
+   git clone https://github.com/intel/memory-usage-analyzer.git
+   pip install -e memory-usage-analyzer
+   ``
 
 ## Run single-page Microbenchmarks
 
