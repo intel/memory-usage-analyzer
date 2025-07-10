@@ -20,6 +20,9 @@ zswap performance benchmarking with IAA uses madvise() system call with MADV_PAG
 
 Collect data and generate reports for all the compressors for single-page. Depending on the number of IAA devices on the system, the setup scripts needs to be modified. The list of compressors and datasets can be modified as needed.
 ```
+    # Be at the right directory
+    cd memory-usage-analyzer/tests/madvise
+
     # For all 4 devices` per socket
     ./collect_single_page.sh  | tee single_page.txt
 
@@ -32,6 +35,9 @@ This will generate a summary of the key metrics for each dataset. In addition to
 ## Run Microbenchmarks with IAA batching
 Collect data and generate reports for all the compressors for batch processing. The list of compressors, datasets and batch sweep can be modifed as needed.
 ```
+    # Be at the right directory for the test
+    cd memory-usage-analyzer/tests/madvise
+
     # For all 4 devices` per socket
     ./collect_batch.sh | tee batch.txt
     # For SKUs with only 1 IAA device per socket
