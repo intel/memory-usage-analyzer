@@ -125,3 +125,6 @@ done
 done
 
 
+# Check if the configuration is correct
+echo "Configured IAA devices:"
+accel-config list | grep iax
