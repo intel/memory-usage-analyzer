@@ -75,7 +75,19 @@ else
 fi
 
 echo ${DBATCH} > /proc/sys/vm/page-cluster || handle_error "Failed to set page-cluster"
-sysctl vm.compress-batchsize=${CBATCH}  || handle_error "Failed to set compress-batchsize"
+
+# Note: This is a temporary solution as we transition the parameter names.
+PARAM_VALUE=$(sysctl -n  vm.compress-batchsize 2>/dev/null)
+EXIT_CODE=$?
+if  [ ${EXIT_CODE} -eq 0 ]; then
+    sysctl vm.compress-batchsize=${CBATCH}  || handle_error "Failed to set compress-batchsize"
+fi
+
+PARAM_VALUE=$(sysctl -n  vm.reclaim-batchsize 2>/dev/null)
+EXIT_CODE=$?
+if  [ ${EXIT_CODE} -eq 0 ]; then
+    sysctl vm.reclaim-batchsize=${CBATCH}  || handle_error "Failed to set compress-batchsize"
+fi
 
 # Clear transparent huge pages configuration
 echo 'never' > /sys/kernel/mm/transparent_hugepage/hugepages-2048kB/enabled || handle_error "Failed to clear hugepages-2048kB configuration"
