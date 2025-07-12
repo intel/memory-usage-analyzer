@@ -33,7 +33,7 @@ long read_sysfs(char *path ){
     FILE* fp = fopen(path, "r");
     char buf[128];
     if (!fp) {
-        perror("Couldn't open file");
+        //perror("Couldn't open file");
         return EXIT_FAILURE;
     }
     fgets(buf, sizeof(buf), fp);
@@ -46,7 +46,7 @@ long read_sysfs_str(char *path , char *str, int size){
   
     FILE* fp = fopen(path, "r");
     if (!fp) {
-        perror("Couldn't open file");
+        //perror("Couldn't open file");
         return EXIT_FAILURE;
     }
     fgets(str, size, fp);

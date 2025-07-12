@@ -3,6 +3,8 @@
 #Copyright (c) 2025, Intel Corporation
 #Description: Configure IAA devices
 
+VERIFY_COMPRESS_PATH="/sys/bus/dsa/drivers/crypto/verify_compress"
+
 iax_dev_id="0cfe"
 num_iaa=$(lspci -d:${iax_dev_id} | wc -l)
 sockets=$(lscpu | grep Socket | awk '{print $2}')
@@ -18,20 +20,34 @@ verbose=0
 iaa_engines=8
 mode="dedicated"
 wq_type="kernel"
+iaa_crypto_mode="async"
+verify_compress=0
 
+
+# Function to handle errors
+handle_error() {
+    echo "Error: $1"
+    exit 1
+}
 
 # Process arguments
 
-while getopts "d:hq:v" opt; do
+while getopts "d:hm:q:vD" opt; do
   case $opt in
     d)
       device_num_per_socket=$OPTARG
       ;;
+    m)
+      iaa_crypto_mode=$OPTARG
+      ;;
     q)
       iaa_wqs=$OPTARG
       ;;
-    v)
+    D)
       verbose=1
+      ;;
+    v)
+      verify_compress=1
       ;;
     h)
       echo "Usage: $0 [-d <device_count>][-q <wq_per_device>][-v]"
@@ -43,6 +59,7 @@ while getopts "d:hq:v" opt; do
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
+      exit
       ;;
   esac
 done
@@ -52,8 +69,6 @@ LOG="configure_iaa.log"
 # Update wq_size based on number of wqs
 wq_size=$(( 128 / iaa_wqs ))
 
-
-
 # Take care of the enumeration, if DSA is enabled.
 dsa=`lspci | grep -c 0b25`
 #set first,step counters to correctly enumerate iax devices based on whether running on guest or host with or without dsa
@@ -62,9 +77,14 @@ step=1
 [[ $dsa -gt 0 && -d /sys/bus/dsa/devices/dsa0 ]] && first=1 && step=2
 echo "first index: ${first}, step: ${step}"
 
+
 #
-# disable iax wqs and devices
+# Switch to software compressors and disable IAAs to have a clean start
 #
+COMPRESSOR=/sys/module/zswap/parameters/compressor
+last_comp=`cat ${COMPRESSOR}`
+echo lzo > ${COMPRESSOR}
+
 echo "Disable IAA devices before configuring"
 
 for ((i = ${first}; i < ${step} * ${num_iaa}; i += ${step})); do
@@ -76,6 +96,21 @@ for ((i = ${first}; i < ${step} * ${num_iaa}; i += ${step})); do
     [[ $verbose == 1 ]] && echo $cmd; eval $cmd
 done
 
+rmmod iaa_crypto
+modprobe iaa_crypto
+
+# apply crypto parameters
+echo $verify_compress > ${VERIFY_COMPRESS_PATH} || handle_error "did not change verify_compress"
+# Note: This is a temporary solution for during the kernel transition.
+if [ -f /sys/bus/dsa/drivers/crypto/g_comp_wqs_per_iaa ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_comp_wqs_per_iaa || handle_error "did not set g_comp_wqs_per_iaa"
+elif [ -f /sys/bus/dsa/drivers/crypto/g_wqs_per_iaa ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_wqs_per_iaa || handle_error "did not set g_wqs_per_iaa"
+fi
+if [ -f /sys/bus/dsa/drivers/crypto/g_consec_descs_per_gwq ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_consec_descs_per_gwq || handle_error "did not set g_consec_descs_per_gwq"
+fi
+echo ${iaa_crypto_mode} > /sys/bus/dsa/drivers/crypto/sync_mode || handle_error "could not set sync_mode"
 
 
 
@@ -124,7 +159,10 @@ done
     end=$(( start + (${step} * ${device_num_per_socket}) ))
 done
 
+# Restore the last compressor
+echo "$last_comp" > ${COMPRESSOR}
 
 # Check if the configuration is correct
 echo "Configured IAA devices:"
 accel-config list | grep iax
+

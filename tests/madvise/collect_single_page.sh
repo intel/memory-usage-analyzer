@@ -29,7 +29,8 @@ echo "Number of IAA device: $iaa_devices"
 
 # Configure IAA devices
 if [ ${iaa_devices} -gt 0 ]; then
-    ./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+    #./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+    ./enable_iaa.sh -d ${iaa_devices} -m sync
 fi
 
 # Configure zswap and zram.
