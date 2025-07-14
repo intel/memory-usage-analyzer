@@ -33,7 +33,7 @@ long read_sysfs(char *path ){
     FILE* fp = fopen(path, "r");
     char buf[128];
     if (!fp) {
-        perror("Couldn't open file");
+        //perror("Couldn't open file");
         return EXIT_FAILURE;
     }
     fgets(buf, sizeof(buf), fp);
@@ -46,7 +46,7 @@ long read_sysfs_str(char *path , char *str, int size){
   
     FILE* fp = fopen(path, "r");
     if (!fp) {
-        perror("Couldn't open file");
+        //perror("Couldn't open file");
         return EXIT_FAILURE;
     }
     fgets(str, size, fp);
@@ -123,6 +123,10 @@ int main(int argc, char **argv)
 	// Replace the newline character with a null terminator
 	compressor[newline_pos] = '\0';
         int cbatch = read_sysfs("/proc/sys/vm/compress-batchsize");
+        // NOTE: This is a temporary solution as we transition to the new kernel
+	if ( cbatch == EXIT_FAILURE ) {
+                cbatch = read_sysfs("/proc/sys/vm/reclaim-batchsize");
+	}
         int dbatch = read_sysfs("/proc/sys/vm/page-cluster");
         // Add compress and decompress batch setting
 	sprintf(compressor, "%s-c%d-d%d", compressor, cbatch, dbatch);
