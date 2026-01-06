@@ -28,7 +28,7 @@ setup(
 
     python_requires='>=3.7',
     # Fixing the bokeh version as newer versions like 3.0 shrink the plots
-    install_requires=['pandas', 'bokeh==2.4.3', 'shapely', 'matplotlib','pytest', 'xlsxwriter',\
+    install_requires=['pandas', 'bokeh==3.8.2', 'shapely', 'matplotlib','pytest', 'xlsxwriter',\
                       'numpy==1.26.4', 'colorcet', 'scipy', 'jsonschema'],
     packages=find_packages(),
     scripts=['src/core/memory_usage_analyzer.py',
