@@ -22,7 +22,7 @@ Intel® Memory Usage Analyzer can
 ## Requirements
 
 * Linux system with sudo access for configuration scripts
-* Linux kernel version >= v5.18
+* Linux kernel version >= v6.8
   * zswap support 
   * swap accounting enabled - add kernel parameter  `swapaccount=1` 
   * cgroup v2 - add kernel parameter "systemd.unified_cgroup_hierarchy=1"
