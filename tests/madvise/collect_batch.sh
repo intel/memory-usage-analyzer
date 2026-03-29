@@ -25,7 +25,8 @@ while getopts "hd:p:" arg; do
 done
 
 # Configure IAA
-./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 async
+#./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 async
+./enable_iaa.sh -d ${iaa_devices} -m async
 # Configure zswap and zram.
 ./enable_zswap.sh
 # swap disk can be used instead of zram. However, zram will avoid any disk access overheads

@@ -71,8 +71,17 @@ echo $config_json
 # apply verify-compress
 echo $verify_compress > ${VERIFY_COMPRESS_PATH} || handle_error "did not change verify_compress"
 
-echo 1 > /sys/bus/dsa/drivers/crypto/g_wqs_per_iaa || handle_error "did not set g_wqs_per_iaa"
-echo 1 > /sys/bus/dsa/drivers/crypto/g_consec_descs_per_gwq || handle_error "did not set g_consec_descs_per_gwq"
+# Note: This is a temporary solution for during the kernel transition.
+if [ -f /sys/bus/dsa/drivers/crypto/g_comp_wqs_per_iaa ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_comp_wqs_per_iaa || handle_error "did not set g_comp_wqs_per_iaa"
+elif [ -f /sys/bus/dsa/drivers/crypto/g_wqs_per_iaa ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_comp_wqs_per_iaa || handle_error "did not set g_wqs_per_iaa"
+fi
+
+if [ -f /sys/bus/dsa/drivers/crypto/g_consec_descs_per_gwq ];then
+    echo 1 > /sys/bus/dsa/drivers/crypto/g_consec_descs_per_gwq || handle_error "did not set g_consec_descs_per_gwq"
+fi
+
 echo ${iaa_crypto_mode} > /sys/bus/dsa/drivers/crypto/sync_mode || handle_error "could not set sync_mode"
 #echo sync > /sys/bus/dsa/drivers/crypto/sync_mode || handle_error "could not set sync_mode"
 
