@@ -29,7 +29,8 @@ echo "Number of IAA device: $iaa_devices"
 
 # Configure IAA devices
 if [ ${iaa_devices} -gt 0 ]; then
-    ./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+    #./enable_kernel_iaa.sh 0 1 ${iaa_devices} 8 2 sync  
+    ./enable_iaa.sh -d ${iaa_devices} -m sync
 fi
 
 # Configure zswap and zram.
@@ -53,7 +54,7 @@ fi
 comp_list=()
 # Create the compression algorihm list. Keep the alphabetical order for easy reporting
 if [ ${iaa_devices} -gt 0 ]; then
-    comp_list+=("deflate-iaa-canned" "deflate-iaa")
+    comp_list+=("deflate-iaa")
 fi
 comp_list+=("lz4")
 if [ ${QAT_ENABLED_IN_KERNEL} -gt 0 ]; then
