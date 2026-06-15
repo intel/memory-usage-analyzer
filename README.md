@@ -1,10 +1,13 @@
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
+<!-- Copyright (c) 2023, Intel Corporation -->
+
 #  Intel® Memory Usage Analyzer
 
 Intel® Memory Usage Analyzer can visualize the memory usage patterns of the workloads and estimate the working set size[^1]. It provides a plug-in interface to different memory-reclaimers to analyze the workload sensitivity with memory-tiering solutions and changes in memory usage patterns under memory pressure across time.
 
 
 ## Background
-DRAM being one of the significant cost contributor in the cloud infrastructure, cloud service providers are deploying different memory-tiering solutions[^2] [^3] [^4]. Given the  workload and infrastructure diversity, the challenge is to get a reasonable memory savings without a significant impact on the workload performance. Every workload may not benefit from memory-tiering. The workloads with large number of memory pages that are less frequently used (warm/cold memory segments) and the high compressibility on these memory pages are good candidates for memory-tiering to offload memory to a compressed tier or slower memory-tiers like SSD, NVMe etc. Linux feature like zswap/zram allow usage compressed-memory-pages in DRAM.
+DRAM being one of the significant cost contributor in the cloud infrastructure, cloud service providers are deploying different memory-tiering solutions[^2] [^3] [^4]. Given the  workload and infrastructure diversity, the challenge is to get a reasonable memory savings without a significant impact on the workload performance. Every workload may not benefit from memory-tiering. The workloads with large number of memory pages that are less frequently used (cold memory segments) and the high compressibility on these memory pages  are good candidates for memory-tiering to offload memory to a compressed tier or slower memory-tiers like SSD, NVMe etc.
 
 The Intel® Memory Usage Analyzer runs workloads under a cgroup[^2] to collect Cgroup stats across the timeline to provide a visualization these stats and summarizes them.
 
@@ -28,7 +31,7 @@ Intel® Memory Usage Analyzer can
   * cgroup v2 - add kernel parameter "systemd.unified_cgroup_hierarchy=1"
   * enable pressure stall information - add kernel parameter "psi=1"
 * Linux perf tool
-* Python >= 3.9
+* Python = 3.11
 
 ## Install
 
@@ -43,7 +46,7 @@ source virtualenv/bin/activate
 Clone and install
 
 ```bash
-git clone https://github.com/intel/memory-usage-analyzer.git
+git clone https://github.com/intel-innersource/applications.benchmarking.memory-usage-analyzer memory-usage-analyzer
 pip install -e memory-usage-analyzer
 ```
 

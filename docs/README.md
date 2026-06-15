@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
+<!-- Copyright (c) 2023, Intel Corporation -->
+
 ## System Configuration
 
 Run the command below to configure the system. This config script help to configure

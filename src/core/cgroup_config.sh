@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 if [ $EUID -ne 0 ]
   then echo "Must run as root or with sudo."
@@ -21,9 +21,7 @@ fi
 
 # setup cgroup
 mkdir ${cgpath}/${cgname}
-echo 'if path exist'
 chown ${cguser} ${cgpath}/cgroup.procs
 chown -R ${cguser} ${cgpath}/${cgname}
-echo 'if path exist'
 # set swappiness
 echo max > ${cgpath}/${cgname}/memory.swap.max

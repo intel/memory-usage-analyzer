@@ -1,13 +1,14 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """statistics analyzer"""
 import argparse
-import subprocess
+import subprocess  # nosec B404
 
 from src.core.util import cold_hot_total, max_memory_usage, read_stats_df,\
     compression_ratio, calculate_savings
+
 
 def get_total_pf_count(df, counter, t_sample):
     """get the total paga fault"""
@@ -20,8 +21,10 @@ def get_total_pf_count(df, counter, t_sample):
           {pf_rate_max:.2f}')
     return total_pf
 
+
 class Analyzer():
     """ Analyzes the statistics dumped in the file and creates the html report """
+
     def __init__(self,
                  resultpath='./stats.csv.gz'):
         self.resultpath = resultpath
@@ -64,7 +67,7 @@ class Analyzer():
 
         try:
             print(f'full total memory pressure            = {full_total_memory_pressure} us')
-        except ImportError:
+        except AttributeError:
             print("full total memory pressure            = None")
 
         if ratio > 1.001:
@@ -91,7 +94,7 @@ class Analyzer():
         pf_rate_med = df.cgroup_memory_stat_pgmajfault.diff().median() / t_sample
         pf_rate_max = df.cgroup_memory_stat_pgmajfault.diff().max() / t_sample
         pf_rate_avg = df.cgroup_memory_stat_pgmajfault.diff().mean() / t_sample
-        major_total_pf = int(df.cgroup_memory_stat_pgmajfault.max() -\
+        major_total_pf = int(df.cgroup_memory_stat_pgmajfault.max() -
                              df.cgroup_memory_stat_pgmajfault.min())
         print(f'Major PFs/sec (median, avg, max) = {pf_rate_med:.2f} {pf_rate_avg:.2f}\
               {pf_rate_max:.2f}')
@@ -138,17 +141,19 @@ class Analyzer():
             print(f'total zswap compressions calls = {total_zswap_compressions_calls}')
             print(f'total zswap decompressions calls = {total_zswap_decompressions_calls}')
         print(f'sampling period = {t_sample}')
-        subprocess.run(f'plot.py -statfile {self.resultpath}/stats.csv.gz -respath\
-                       {self.resultpath}', shell=True, check=False)
+        subprocess.run(['plot.py', '-statfile', f'{self.resultpath}/stats.csv.gz',  # nosec
+                       '-respath', self.resultpath], check=False)
+
 
 def main():
     """entry point"""
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('resultpath', nargs='?', default='.',\
+    parser.add_argument('resultpath', nargs='?', default='.',
         help='memoryusageanalyzer stats file path')
     args = parser.parse_args()
     al = Analyzer(args.resultpath)
     al.run()
+
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#SPDX-License-Identifier: BSD-3-Clause
+#Copyright (c) 2026, Intel Corporation
+
+IAX_CONFIG_PATH=/sys/bus/dsa/devices
+
+IAX_BIND_PATH=/sys/bus/dsa/drivers/idxd/bind
+IAX_BIND_WQ_PATH=/sys/bus/dsa/drivers/crypto/bind
+
+IAX_UNBIND_PATH=/sys/bus/dsa/drivers/idxd/unbind
+IAX_UNBIND_WQ_PATH=/sys/bus/dsa/drivers/crypto/unbind
+
+#
+# count iax instances
+#
+iax_dev_id="0cfe"
+num_iax=$(lspci -d:${iax_dev_id} | wc -l)
+num_wq=8
+echo "Found ${num_iax} IAX instances"
+
+#
+# disable iax wqs and devices
+#
+echo "Disable IAX"
+
+for ((i = 1; i < 2 * ${num_iax}; i += 2)); do
+    #echo disable wq iax${i}/wq${i}.0
+    #accel-config disable-wq iax${i}/wq${i}.0 
+    #echo disable iax iax${i} 
+    #accel-config disable-device iax${i}
+
+    for ((j = 0; j < ${num_wq}; j += 1)); do
+        echo disable wq iax${i}/wq${i}.${j}
+        echo wq${i}.${j} > $IAX_UNBIND_WQ_PATH
+    done
+    echo disable iax iax${i}
+    echo iax${i} > $IAX_UNBIND_PATH
+done
+
+rmmod iaa_crypto
+modprobe iaa_crypto
+
+
+
+
+

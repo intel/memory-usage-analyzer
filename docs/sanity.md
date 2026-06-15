@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
+<!-- Copyright (c) 2023, Intel Corporation -->
+
 # Sanity Tests
 
 This section provides details on running Sanity checks before code changes are submitted. This checks

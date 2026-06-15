@@ -1,11 +1,12 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """squeezer to limit the memory"""
+import logging
 import re
 import glob
-import subprocess
+import subprocess  # nosec B404
 import time
 import os
 import sys
@@ -14,6 +15,8 @@ import pandas
 from jsonschema import validate
 from src.core.util import kernel_version, max_memory_usage
 from src.reclaimer.basereclaimer import Reclaimer
+
+logger = logging.getLogger(__name__)
 
 STATICSCHEMA = {
     "type": "object",
@@ -82,10 +85,12 @@ DYNAMICSCHEMA = {
         "pf_rate_watermark": {"type": "integer",
                               "maximum": 10000},
     },
-    "required": ["mode", "reclaimer", "reclaimer_file", "init_limit", "min_limit", "max_limit",\
-                 "delay", "fixed", "squeeze_max", "squeeze_delta", "squeeze_timeout",\
+    "required": ["mode", "reclaimer", "reclaimer_file", "init_limit", "min_limit", "max_limit",
+                 "delay", "fixed", "squeeze_max", "squeeze_delta", "squeeze_timeout",
                 "pf_rate_watermark"]
 }
+
+
 def get_key_value(line):
     """get the key value pair"""
     try:
@@ -116,19 +121,20 @@ def read_stats(paths):
     """read the status"""
     result = {}
     for path in paths:
-        lines = subprocess.run(f'sudo grep . -rH {path}', shell=True, capture_output=True,\
+        lines = subprocess.run(['sudo', 'grep', '.', '-rH', path], capture_output=True,  # nosec
                                check=False).stdout.decode().strip()
         for line in lines.split('\n'):
             key, value = get_key_value(line)
             try:
                 result[key] = int(value)
-            except:
+            except (ValueError, TypeError):
                 result[key] = value
     return result
 
 
 class Squeezer(Reclaimer):
     """dynamic and static memory squeezer"""
+
     def __init__(self, cgpath, cgname, sample_period, config):
         super().__init__()
         self.mode = config["mode"]
@@ -197,9 +203,9 @@ class Squeezer(Reclaimer):
                 # cannot use sudo here, because killing process after a timeout will fail
                 # therefore, we need to chown -R the cgroup path to the current user in
                 # Memoryusageanalyzer.run
-                cmd = f'echo {value} > {self.cgpath}/{self.cgname}/memory.high'
-                subprocess.run(cmd,
-                               shell=True,
+                mem_high_path = f'{self.cgpath}/{self.cgname}/memory.high'
+                subprocess.run(  # nosec
+                               ['sh', '-c', 'echo "$1" > "$2"', '_', str(value), mem_high_path],
                                check=True,
                                stderr=subprocess.DEVNULL,
                                timeout=self.squeeze_timeout)
@@ -212,12 +218,15 @@ class Squeezer(Reclaimer):
                 success = False
             # release squeeze (twice because the first one fails sometimes when the try block
             # above fails)
-            cmd = f'echo {self.max_limit} > {self.cgpath}/{self.cgname}/memory.high'
-            subprocess.run(cmd, shell=True, check=False)
-            subprocess.run(cmd, shell=True, check=False)
+            mem_high_path = f'{self.cgpath}/{self.cgname}/memory.high'
+            subprocess.run(['sh', '-c', 'echo "$1" > "$2"', '_',  # nosec
+                           str(self.max_limit), mem_high_path], check=False)
+            subprocess.run(['sh', '-c', 'echo "$1" > "$2"', '_',  # nosec
+                           str(self.max_limit), mem_high_path], check=False)
         else:
-            cmd = f'echo {self.max_limit} > {self.cgpath}/{self.cgname}/memory.high'
-            subprocess.run(cmd, shell=True, check=False)
+            mem_high_path = f'{self.cgpath}/{self.cgname}/memory.high'
+            subprocess.run(['sh', '-c', 'echo "$1" > "$2"', '_',  # nosec
+                           str(self.max_limit), mem_high_path], check=False)
             value = 0
         return value, success
 
@@ -249,8 +258,9 @@ class Squeezer(Reclaimer):
         # apply initial memory limit
         if self.init_limit:
             print(f'**** Initial memory limit = {self.init_limit}')
-            subprocess.run(f'echo {self.init_limit} > {self.cgpath}/{self.cgname}/memory.high',\
-                           shell=True, check=False)
+            mem_high_path = f'{self.cgpath}/{self.cgname}/memory.high'
+            subprocess.run(['sh', '-c', 'echo "$1" > "$2"', '_',  # nosec
+                           str(self.init_limit), mem_high_path], check=False)
         if self.mode == "staticsweep":
             print('**** Squeezer exiting')
             self.csv_file.close()
@@ -271,12 +281,12 @@ class Squeezer(Reclaimer):
             # read environment state
             self.update_state()
             try:
-                pf_rate = (self.state['memory.stat:pgmajfault'] -\
+                pf_rate = (self.state['memory.stat:pgmajfault'] -
                            self.prev_state['memory.stat:pgmajfault']) / self.sample_period
-            except ImportError:
+            except (KeyError, TypeError):
                 if os.path.exists(f'{self.cgpath}/memory/{self.cgname}') or\
                     os.path.exists(f'{self.cgpath}/{self.cgname}'):
-                    print("DEBUG: unexpected behavior in squeezer")
+                    logger.debug('Unexpected behavior in squeezer: stat key not found')
                 else:
                     self.active = False
                     continue

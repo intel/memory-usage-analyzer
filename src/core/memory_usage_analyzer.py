@@ -1,11 +1,11 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """Main Application module"""
 import argparse
 import os
-import subprocess
+import subprocess  # nosec B404
 import logging
 import time
 import sys
@@ -32,8 +32,10 @@ console.setLevel(logging.INFO)
 console.setFormatter(formatter)
 logger.addHandler(console)
 
+
 class MemoryUsageAnalyzer:
     """  Memoryusageanalyzer entry class"""
+
     def __init__(self,
                 verbose,
                 output,
@@ -63,16 +65,14 @@ class MemoryUsageAnalyzer:
 
     def cgroup_path_create(self):
         """creation of cgroup directory based on cgname"""
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        config_args = ''
-        config_args += f'{self.cgpath} '
-        config_args += f'{self.cgname} '
+        import src as _src_pkg
+        script_dir = os.path.join(os.path.dirname(os.path.abspath(_src_pkg.__file__)), 'core')
         cguser = getuser()
-        config_args += f'{cguser} '
-        config_cmd = f'sudo bash {script_dir}/cgroup_config.sh {config_args}'
+        config_cmd = ['sudo', 'bash', f'{script_dir}/cgroup_config.sh',
+                      self.cgpath, self.cgname, cguser]
         if self.verbose:
-            print(config_cmd)
-        result = subprocess.run(config_cmd, shell=True, check=False)
+            print(' '.join(config_cmd))
+        result = subprocess.run(config_cmd, check=False)  # nosec B603
         return result
 
     def reclaimer_config_module_loading(self, result_path):
@@ -95,12 +95,12 @@ class MemoryUsageAnalyzer:
         if os.path.islink(self.reclaimerconfig):
             rpath = os.path.realpath(self.reclaimerconfig)
             if not os.path.lexists(rpath):
-                logger.error("reclaimer config path is symbolic path and not exist %s",\
+                logger.error("reclaimer config path is symbolic path and not exist %s",
                     self.reclaimerconfig)
                 sys.exit(1)
 
         # load the config file
-        config_file = f'{self.reclaimerconfig}'
+        config_file = os.path.realpath(self.reclaimerconfig)
         with open(config_file, 'r', encoding="utf-8") as read_file:
             config = json.load(read_file)
 
@@ -145,6 +145,9 @@ class MemoryUsageAnalyzer:
 
         if param:
             # config the sweep parameter
+            if rec_inst is None:
+                logger.error("Cannot configure sweep parameter without a reclaimer")
+                sys.exit(1)
             rec_inst.config_sweep_param(param, range_value, path)
 
         # initiate the workload with appropriate parameters
@@ -161,9 +164,9 @@ class MemoryUsageAnalyzer:
 
         # start stats collection
         logger.info("**** Starting stats")
-        stats_cmd = f'stats.py -p {self.sampleperiod} -o {report + STATS_LOG} \
-                        --cgpath {self.cgpath} --cgname {self.cgname}'
-        stats = subprocess.Popen(stats_cmd.split())
+        stats_cmd = ['stats.py', '-p', str(self.sampleperiod), '-o', report + STATS_LOG,
+                     '--cgpath', self.cgpath, '--cgname', self.cgname]
+        stats = subprocess.Popen(stats_cmd)  # nosec B603
 
         # start reclaimer
         if reclaimer:
@@ -180,7 +183,7 @@ class MemoryUsageAnalyzer:
             job_interrupted = True
             if container_id:
                 logger.info("**** Stopping docker container")
-                subprocess.run(f'sudo docker stop {container_id}', shell=True, check=False)
+                subprocess.run(['sudo', 'docker', 'stop', container_id], check=False)  # nosec
 
         # save stats
         logger.info("**** Stopping stats")
@@ -229,6 +232,9 @@ class MemoryUsageAnalyzer:
 
         if param:
             # config the sweep parameter
+            if self.rec_inst is None:
+                logger.error("Cannot configure sweep parameter without a reclaimer")
+                sys.exit(1)
             self.rec_inst.config_sweep_param(param, range_value, path)
 
         # initiate the workload with appropriate parameters
@@ -245,9 +251,9 @@ class MemoryUsageAnalyzer:
 
         # start stats collection
         logger.info("**** Starting stats")
-        stats_cmd = f'stats.py -p {self.sampleperiod} -o {report + STATS_LOG} \
-                        --cgpath {self.cgpath} --cgname {self.cgname}'
-        self.stats = subprocess.Popen(stats_cmd.split())
+        stats_cmd = ['stats.py', '-p', str(self.sampleperiod), '-o', report + STATS_LOG,
+                     '--cgpath', self.cgpath, '--cgname', self.cgname]
+        self.stats = subprocess.Popen(stats_cmd)  # nosec B603
 
         # start reclaimer
         if self.reclaimer:
@@ -268,7 +274,7 @@ class MemoryUsageAnalyzer:
             job_interrupted = True
             if self.container_id:
                 logger.info("**** Stopping docker container")
-                subprocess.run(f'sudo docker stop {self.container_id}', shell=True, check=False)
+                subprocess.run(['sudo', 'docker', 'stop', self.container_id], check=False)  # nosec
 
         # save stats
         logger.info("**** Stopping stats")
@@ -312,7 +318,7 @@ class MemoryUsageAnalyzer:
         if os.path.islink(self.output):
             rpath = os.path.realpath(self.output)
             if not os.path.lexists(rpath):
-                logger.error("output result path is symbolic path and not exist %s",\
+                logger.error("output result path is symbolic path and not exist %s",
                     self.output)
                 sys.exit(1)
 
@@ -321,9 +327,9 @@ class MemoryUsageAnalyzer:
 
         if self.cmd:
             if schedule:
-                cmd = f'{self.cmd}'
+                cmd = self.cmd
             else:
-                cmd = f'{" ".join(self.cmd)}'
+                cmd = " ".join(self.cmd)
         else:
             logger.error("cmd args not provided = %s", self.cmd)
             sys.exit(1)
@@ -358,7 +364,7 @@ class MemoryUsageAnalyzer:
                 for range_value in param["range"]:
                     report = path + f'/{param["param"]}_{range_value}'
                     self.make_resultdir(path, f'{param["param"]}_{range_value}')
-                    self.run_workload(cmd, report, rec_class, config, result_path, param,\
+                    self.run_workload(cmd, report, rec_class, config, result_path, param,
                                         range_value)
 
 
@@ -374,22 +380,23 @@ def multi_config_loading(multiconfig):
         sys.exit(1)
 
     if not os.path.lexists(multiconfig):
-        print("reclaimer config path not exist = %s", multiconfig)
+        logger.error("reclaimer config path does not exist: %s", multiconfig)
         sys.exit(1)
 
     if os.path.islink(multiconfig):
         rpath = os.path.realpath(multiconfig)
         if not os.path.lexists(rpath):
-            print("multi config path is symbolic path and not exist %s",\
-            multiconfig)
+            logger.error("multi config path is a symbolic link pointing to a non-existent target: %s",
+                multiconfig)
             sys.exit(1)
 
     # load the config file
-    config_file = f'{multiconfig}'
+    config_file = os.path.realpath(multiconfig)
     with open(config_file, 'r', encoding="utf-8") as read_file:
         config = json.load(read_file)
 
     return config
+
 
 def main():
     """main entry function"""
@@ -457,6 +464,7 @@ def main():
                args.reclaimerconfig,
                args.cmdoptions)
         inst.run(schedule=False)
+
 
 if __name__ == "__main__":
     main()

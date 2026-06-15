@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
+<!-- Copyright (c) 2023, Intel Corporation -->
+
 # Run a workload in a docker container:
 1. Give the workload's docker container a name on the docker command line (`--name NAME`)
 2. For convenience, have docker automatically remove the container when it exits, so the container name can be reused (`--rm`)

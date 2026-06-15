@@ -1,9 +1,9 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 """multi workload run in parallel"""
 import argparse
-import subprocess
+import subprocess  # nosec B404
 import sys
 import json
 import os
@@ -61,7 +61,7 @@ def main():
         for config in config_list:
             cmd = f'memory_usage_analyzer.py -o {config["output"]} --cgname {config["cgroupname"]}\
                     -- {config["cmd"]} {config["options"]}'
-            process = subprocess.Popen(cmd.split())
+            process = subprocess.Popen(cmd.split())  # nosec B603
             processes.append(process)
 
         for process in processes:

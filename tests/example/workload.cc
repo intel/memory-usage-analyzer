@@ -34,8 +34,20 @@ main(int argc, char** argv)
 	}
 	
         int memory = atoi(argv[1]);
+        if (memory <= 0 || memory > 1024) {
+		printf("Error: memory must be between 1 and 1024 GiB\n");
+		return 1;
+	}
         hot_timer = atoi(argv[2]);
+        if (hot_timer <= 0 || hot_timer > 86400) {
+		printf("Error: hot_timer must be between 1 and 86400 seconds\n");
+		return 1;
+	}
         int loops = atoi(argv[3]);
+        if (loops < 0 || loops > 100000000) {
+		printf("Error: loops must be between 0 and 100000000\n");
+		return 1;
+	}
 
 	// Get the number of pages - 4K bytes -> 2** PAGE_SHIFT.
         long pages = memory << (30 - PAGE_SHIFT);
