@@ -2,9 +2,10 @@
 
 This is a charaterization framework to benchamark zswap with IAA using Redis and show case its value in reducing the memory footprint of Redis with less impact on the workload performance.
 
-# Prerequisites
+# Setting up Environment
 
-* Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [main README](../../README.md#prerequisites).
+Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [README](../../README.md#prerequisites).
+
 * Install Redis server and memtier-benchmark. 
   ```
   ./setup_redis.sh
