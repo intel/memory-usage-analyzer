@@ -46,7 +46,7 @@ source virtualenv/bin/activate
 Clone and install
 
 ```bash
-git clone https://github.com/intel-innersource/applications.benchmarking.memory-usage-analyzer memory-usage-analyzer
+git clone https://github.com/intel/memory-usage-analyzer.git
 pip install -e memory-usage-analyzer
 ```
 
