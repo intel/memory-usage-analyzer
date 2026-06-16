@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """zswap compression config"""
 import argparse
+import glob as glob_module
 import os
+import shlex
 import sys
-import subprocess
+import subprocess  # nosec B404
 import logging
 from logging import info, debug, error
 
@@ -14,12 +16,13 @@ def shell(cmd, quiet=False):
     """execute the cmd"""
     if not quiet:
         debug(f'  shell: {cmd}')
-    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,\
-                            check=False).stdout
-    try:
-        result = result.decode().strip()
-    except ImportError:
-        pass
+    result = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,\
+                            check=False).stdout  # nosec B603
+    if result is not None:
+        try:
+            result = result.decode().strip()
+        except (UnicodeDecodeError, AttributeError):
+            pass
     if result and not quiet:
         debug(f'    result: {result}')
     return result
@@ -28,11 +31,16 @@ def write_param(val, filename):
     """write the sysfs params"""
     print(f'contents {val}, {filename}')
     if os.path.exists(filename):
-        shell(f'echo {val} > {filename}')
+        try:
+            with open(filename, 'w') as f:
+                f.write(str(val))
+        except (IOError, OSError) as e:
+            error(f'Failed to write {val} to {filename}: {e}')
 
 def status():
     """cat the zswap compressor params"""
-    compressor = shell('cat /sys/module/zswap/parameters/compressor')
+    with open('/sys/module/zswap/parameters/compressor', 'r') as f:
+        compressor = f.read().strip()
     info(f'Compressor = {compressor}')
 
 def header(msg, sep='='):
@@ -44,7 +52,10 @@ def header(msg, sep='='):
 def report():
     """consolidated report"""
     header('zswap')
-    info(shell('grep -rH . /sys/module/zswap/parameters /sys/kernel/debug/zswap*', quiet=True))
+    paths = ['/sys/module/zswap/parameters'] + glob_module.glob('/sys/kernel/debug/zswap*')
+    grep_result = subprocess.run(['grep', '-rH', '.'] + paths,
+                                 capture_output=True, check=False).stdout.decode().strip()  # nosec B603
+    info(grep_result)
     header('block devices')
     info(shell('lsblk'))
     header('memory')
@@ -52,7 +63,7 @@ def report():
     header('config')
     status()
 
-def main(inputs):
+def run(inputs):
     """main entry"""
     debug(f'arguments = {inputs}')
 
@@ -60,7 +71,47 @@ def main(inputs):
     write_param('0', f'{"/sys/module/zswap/parameters/enabled"}')
     shell('swapoff -a')
 
-    write_param(f'{arguments.compressor}', f'{"/sys/module/zswap/parameters/compressor"}')
+    debug('Clean zswap stats')
+    for filepath in glob_module.glob('/sys/kernel/debug/zswap/total*'):
+        try:
+            with open(filepath, 'w') as f:
+                f.write('0')
+        except (IOError, OSError):
+            pass
+    for filepath in glob_module.glob('/sys/kernel/debug/total_zswap_*'):
+        try:
+            with open(filepath, 'w') as f:
+                f.write('0')
+        except (IOError, OSError):
+            pass
+
+    if inputs.compressor in ('deflate-iaa-canned' , 'deflate-iaa', 'deflate'):
+        # Resolve to source tree's config_script dir via the installed 'src' package,
+        # so editable installs use the source scripts, not stale copies in bin/.
+        import src as _src_pkg
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(_src_pkg.__file__))),
+                            'tests', 'config_script')
+        sys.stdout.flush()
+        write_param(f'lzo-rle', f'/sys/module/zswap/parameters/compressor')
+        # Disable IAA crypto to allow configuration as some parameters needs this
+        # Disable IAA to start with
+        shell(f'{path}/disable_iaa.sh')
+        write_param(f'false', f'/sys/module/zswap/parameters/zlib_compression_enabled')
+
+        # This will reconfigure iaa_crypto_enable
+        output = shell(f'{path}/configure_iaa.sh')
+        sys.stdout.flush()
+        info('\n'.join(output.split('\n')[-3:]))
+        write_param(f'{inputs.compressor}', f'/sys/module/zswap/parameters/compressor')
+    else:
+        # Disable IAA if it was previously active, so sync_mode can be written
+        import src as _src_pkg
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(_src_pkg.__file__))),
+                            'tests', 'config_script')
+        shell(f'{path}/disable_iaa.sh')
+        write_param(f'{inputs.compressor}', f'/sys/module/zswap/parameters/compressor')
+        write_param(f'sync', f'/sys/bus/dsa/drivers/crypto/sync_mode')
+        write_param(f'false', f'/sys/module/zswap/parameters/zlib_compression_enabled')
 
     debug('Enable swap')
     if not os.path.exists('/dev/zram0'):
@@ -71,7 +122,9 @@ def main(inputs):
     write_param('1', f'{"/sys/module/zswap/parameters/enabled"}')
 
     debug('Check for swap device')
-    swap_devices = int(shell('swapon --noheadings | wc -l'))
+    swap_result = subprocess.run(['swapon', '--noheadings'], capture_output=True,  # nosec
+                                  check=False).stdout.decode().strip()
+    swap_devices = len(swap_result.splitlines()) if swap_result else 0
     debug(f'found {swap_devices} swap devices')
     if swap_devices < 1:
         error('No swap devices found. Setup a swap device before configuring zswap.')
@@ -88,8 +141,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,\
                                      description=MSG)
     parser.add_argument('-r', '--report', action='store_true', help='report config and stats only')
-    parser.add_argument('-c', '--compressor', default='lzo-rle', choices=\
-            ('lzo-rle', 'zstd', 'rle1a'), help='compression engine (software)')
+    parser.add_argument('-c', '--compressor', default='lzo-rle', choices=('deflate',\
+            'deflate-iaa', 'lzo-rle', 'zstd', 'rle1a'), help='compression engine (software)')
     parser.add_argument('-v', '--verbose', action='store_true', help='verbose output')
 
     arguments = parser.parse_args()
@@ -107,4 +160,4 @@ if __name__ == '__main__':
     if arguments.report:
         report()
     else:
-        main(arguments)
+        run(arguments)

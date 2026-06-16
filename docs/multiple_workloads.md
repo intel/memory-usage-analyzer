@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
+<!-- Copyright (c) 2023, Intel Corporation -->
+
 # Analyzing multiple workloads with multiple cgroups in parallel
 
 In some scenarios, workloads are run under different cgroups to allow different resource constraints. This section provides details on how to monitor memory usage with multiple Cgroups running concurrently. multiconfig.json, as provided in the example below, allows monitoring of 2 Cgroups. This can be further extended to more number of Cgrups. In the example below, the first ( memoryusageanalyzer1) run the baseline runs and the second Cgroup (memoryusageanalyzer2)

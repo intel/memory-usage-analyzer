@@ -1,7 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2025, Intel Corporation
-#Description: Create a swap space, if zram is not used
+#Copyright (c) 2026, Intel Corporation
 
 # Default values
 DEFAULT_SWAP_LOCATION="/mnt/nvme1/swapfile"

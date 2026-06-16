@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 cgpath=${1:-/sys/fs/cgroup}; shift
 cgname=${1:-memoryusageanalyzer}; shift

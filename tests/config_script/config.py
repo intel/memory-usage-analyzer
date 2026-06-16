@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """script to config the swap and zram"""
 import argparse
@@ -8,21 +8,22 @@ from getpass import getuser
 import os
 import platform
 import re
+import shlex
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
-from subprocess import run
+from subprocess import run  # nosec B404
 from logging import debug
 from packaging import version
 
 def shell(cmd):
     """execute the cmd in the subprocess"""
     debug(f'  shell: {cmd}')
-    result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,\
-                            check=False).stdout
+    result = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,\
+                            check=False).stdout  # nosec B603
     try:
         result = result.decode()
-    except ImportError:
+    except (UnicodeDecodeError, AttributeError):
         pass
     debug(f'    result: {result}')
     return result
@@ -52,8 +53,8 @@ def check_requirements(self):
     memstat_path = f'{self.cgpath}/memory.stat'
 
     if os.path.exists(memstat_path):
-        swapaccount_enabled = int(run(f'grep -c swap {memstat_path}',
-                                    shell=True, capture_output=True, check=False).stdout)
+        with open(memstat_path, 'r') as f:
+            swapaccount_enabled = sum(1 for line in f if 'swap' in line)
         if swapaccount_enabled:
             print('[OK] swap accounting enabled')
         else:
@@ -127,7 +128,9 @@ class Config:
 
     def run(self):
         """run function"""
-        script_dir = os.path.dirname(os.path.realpath(__file__))
+        import src as _src_pkg
+        script_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(_src_pkg.__file__))),
+                                  'tests', 'config_script')
 
         if self.info_file is not None:
             fp = open(self.info_file, 'a', encoding="utf-8")
@@ -158,10 +161,15 @@ class Config:
         config_args += f'{self.cguser} '
         config_args += f'{vm_swappiness} '
 
-        config_cmd = f'sudo bash {script_dir}/config.sh {config_args}'
+        config_cmd = ['sudo', 'bash', f'{script_dir}/config.sh',
+                      zram_comp_algorithm, str(int(zram_disksize)),
+                      str(int(zram_mem_limit)), zswap_zpool,
+                      str(self.maxpool), str(zswap_enabled),
+                      self.cgpath, self.cgname, self.cguser,
+                      str(vm_swappiness)]
         if self.verbose:
-            print(config_cmd)
-        run(config_cmd, shell=True, check=False)
+            print(' '.join(config_cmd))
+        run(config_cmd, check=False)  # nosec B603
 
         if self.freq:
             if self.freq == "dynamic":
@@ -170,23 +178,22 @@ class Config:
                                 // 1000
                 max_freq = int(shell('cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq'))\
                                 // 1000
-                shell(f'cpupower frequency-set -g performance --min {min_freq}MHz\
-                      --max {max_freq}MHz > /dev/null')
+                shell(f'cpupower frequency-set -g performance --min {min_freq}MHz'
+                      f' --max {max_freq}MHz')
             if self.freq.isdigit():
                 print(f'Setting freqeuncy limits to {self.freq} MHz')
-                shell(f'cpupower frequency-set -g performance --min {self.freq}MHz\
-                      --max {self.freq}MHz > /dev/null')
+                shell(f'cpupower frequency-set -g performance --min {self.freq}MHz'
+                      f' --max {self.freq}MHz')
 
         # check if swap device is available
-        swap_cmd = 'swapon -s'
-        swap_available = run(f'{swap_cmd}', shell=True, capture_output=True, check=False).\
-                            stdout.decode()
+        swap_cmd = ['swapon', '-s']
+        swap_available = run(swap_cmd, capture_output=True, check=False).stdout.decode()  # nosec
         if not swap_available:
             print("**** Config.py : swap device is not available")
             return 1
 
         if self.verbose:
-            run(f'sudo bash {script_dir}/report.sh {self.cgpath} {self.cgname}', shell=True,\
+            run(['sudo', 'bash', f'{script_dir}/report.sh', self.cgpath, self.cgname],  # nosec
                  check=False)
 
         if self.info_file is not None:

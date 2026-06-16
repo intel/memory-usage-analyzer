@@ -1,14 +1,17 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """status collector module"""
 import argparse
+import logging
 import os
 import re
 import signal
-import subprocess
+import subprocess  # nosec B404
 import time
+
+logger = logging.getLogger(__name__)
 
 STAT_PATHS = {
     'zswap': '/sys/kernel/debug/zswap',
@@ -19,11 +22,14 @@ IGNORE_REGEX = r'cgroup.procs|cgroup.threads|tasks|numa'
 # global used to control the stat collection loop
 ACTIVE = True
 
+
 class BaseStats(object):
     """Empty base class used to identify classes that generate stats"""
 
+
 class ZramStats(BaseStats):
     """collects the zram memory statistics"""
+
     def __init__(self):
         if not os.path.exists('/sys/block/zram0/mm_stat'):
             self.zram_enabled = False
@@ -38,8 +44,8 @@ class ZramStats(BaseStats):
     def values(self):
         """return values"""
         if self.zram_enabled:
-            line = subprocess.run('cat /sys/block/zram0/mm_stat', shell=True, capture_output=True,
-                                  check=False).stdout.decode().strip()
+            with open('/sys/block/zram0/mm_stat', 'r') as f:
+                line = f.read().strip()
             values = line.split()
             if len(values) == 9:
                 values.pop()
@@ -50,16 +56,22 @@ class ZramStats(BaseStats):
 
         return '0,0,0,0,0,0,0,0,'
 
+
 class BlkioStats(BaseStats):
     """collects the block I/O device memory statistics"""
+
     def __init__(self, cgpath, cgname):
         self.path = f'{cgpath}/{cgname}'
 
         self.device_map = {}
-        devices = subprocess.run('lsblk -r | tail -n +2', shell=True, capture_output=True,
+        devices = subprocess.run(['lsblk', '-r'], capture_output=True,  # nosec
                                  check=False).stdout.decode().strip()
-        for device in devices.split('\n'):
-            name, number = device.split()[:2]
+        for device in devices.split('\n')[1:]:
+            parts = device.split()
+            if len(parts) < 2:
+                logger.debug('Skipping malformed lsblk line: %s', device)
+                continue
+            name, number = parts[0], parts[1]
             self.device_map[number] = name
 
     def headers(self):
@@ -69,8 +81,12 @@ class BlkioStats(BaseStats):
 
     def _total_cg2(self):
         """calculate the cgroup total read and write bytes"""
-        lines = subprocess.run(f'cat {self.path}/io.stat', shell=True, capture_output=True,
-                               check=False).stdout.decode().strip()
+        io_stat_path = f'{self.path}/io.stat'
+        try:
+            with open(io_stat_path, 'r') as f:
+                lines = f.read().strip()
+        except (IOError, OSError):
+            lines = ''
         blkio_total_read_iops = 0
         blkio_total_write_iops = 0
         blkio_total_read_bytes = 0
@@ -97,8 +113,10 @@ class BlkioStats(BaseStats):
         result += self._total_cg2()
         return result
 
+
 class Stats(BaseStats):
     """collects the memory statistics"""
+
     def __init__(self, args = None):
         self.args = args
 
@@ -107,7 +125,7 @@ class Stats(BaseStats):
         try:
             key, value = line.split(':', 1)
         except ValueError:
-            print(f'DEBUG: Unexpected stat result = {line}')
+            logger.debug('Unexpected stat line format: %s', line)
             return None, None
         key = key.split('/')[-1]
 
@@ -152,12 +170,12 @@ class Stats(BaseStats):
                 path, regex = path.split(':')
             else:
                 regex = '.'
-            lines = subprocess.run(f'sudo grep {regex} -rH {path}', shell=True,
+            lines = subprocess.run(['sudo', 'grep', regex, '-rH', path],  # nosec
                                    capture_output=True, check=False).stdout.decode().strip()
             for line in lines.split('\n'):
                 key, value = self.get_key_value(line)
                 if key is None:
-                    print(f'DEBUG: {path}')
+                    logger.debug('Could not parse stat key from path: %s', path)
                     continue
 
                 if re.search(IGNORE_REGEX, key):
@@ -216,7 +234,8 @@ class Stats(BaseStats):
 
         print(f'**** Closing {self.args.output.name}.gz')
         self.args.output.close()
-        subprocess.run(f'gzip -f {self.args.output.name}', shell=True, check=False)
+        subprocess.run(['gzip', '-f', self.args.output.name], check=False)  # nosec
+
 
 def main():
     """start of the app"""
@@ -240,6 +259,7 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
     st = Stats(args)
     st.run()
+
 
 if __name__ == "__main__":
     main()

@@ -1,10 +1,11 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """sanity to test the functionality"""
 import argparse
-import subprocess
+import shlex
+import subprocess  # nosec B404
 import sys
 import os
 import json
@@ -35,15 +36,15 @@ SANITYSCHEMA = {
 
 def shell(cmd, quiet=False):
     """execute the cmd in the sub process"""
-    result = None
     if not quiet:
         debug(f'  shell: {cmd}')
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,\
-                                stderr=subprocess.STDOUT, check=False).stdout
-    try:
-        result = result.decode().strip()
-    except ImportError:
-        pass
+    result = subprocess.run(shlex.split(cmd), stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, check=False).stdout  # nosec B603
+    if result is not None:
+        try:
+            result = result.decode().strip()
+        except (UnicodeDecodeError, AttributeError):
+            pass
     if result and not quiet:
         debug(f'    result: {result}')
     return result

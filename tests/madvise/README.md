@@ -1,64 +1,52 @@
-# Introduction
-zswap performance benchmarking with IAA uses madvise() system call with MADV_PAGEOUT. It loads the entire dataset (silesia.tar for example) to memory, swap-out all the pages and swap-in all the pages, monitoring the time spent in swap-in and swap-out and other key metrics. There are two benchmarking scenarios
+# Instructions
 
-1. benchmark single page
-2. benchmark with IAA batching to take advantage of parallel processing in IAA.
+<span style="color:red">**⚠ NOTE: We are currently not supporting this workload due to a kernel upgrade issue. Please come back later after it is fixed.**</span>
 
-## Prerequisites
-1. Platform with Intel Xeon 4th generation (or higher) processor and IAA.
-1. Kernel with IAA RFC patches. Please see instructions on building the kernel [here](https://github.com/intel/memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel).
-1. Set up the workspace and dependencies for
-  [Memory Usage Analyzer Framework](https://github.com/intel/memory-usage-analyzer/tree/main?tab=readme-ov-file#install_). The following steps will set up that.
+## Prerequisite
+This framework depends on IAA RFC kernel patches. Please see more instructions here. https://github.com/intel-innersource/applications.benchmarking.memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel
+## Run in Baremetal
+1. Run
    ```
-   python -m venv virtualenv
-   source virtualenv/bin/activate
-   git clone https://github.com/intel/memory-usage-analyzer.git
-   pip install -e memory-usage-analyzer
+    ./make_swap_space.sh
    ```
-
-## Run single-page Microbenchmarks
-
-Collect data and generate reports for all the compressors for single-page. Depending on the number of IAA devices on the system, the setup scripts needs to be modified. The list of compressors and datasets can be modified as needed.
-```
-    # Be at the right directory
-    cd memory-usage-analyzer/tests/madvise
-
-    # For all 4 devices` per socket
-    ./collect_single_page.sh  | tee single_page.txt
-
-    # For SKUs with only 1 IAA device per socket
-    ./collect_single_page.sh  -d 1  | tee single_page.txt
-
-``` 
-This will generate a summary of the key metrics for each dataset. In addition to that more detailed data points like CDFs and a summary .xls will be generated under the results_* directory
-
-## Run Microbenchmarks with IAA batching
-Collect data and generate reports for all the compressors for batch processing. The list of compressors, datasets and batch sweep can be modifed as needed.
-```
-    # Be at the right directory for the test
-    cd memory-usage-analyzer/tests/madvise
-
-    # For all 4 devices` per socket
-    ./collect_batch.sh | tee batch.txt
-    # For SKUs with only 1 IAA device per socket
-    ./collect_batch.sh -d 1 | tee batch.txt
-```
-This will generate swap-in and swap-out latency reports for different batches for IAA along with software compressors.
+   Additional details of make_swap_space.sh script:
+	Command Line Arguments: The script now accepts -l for specifying the swap file location and -s for specifying the swap size in GB.
+	Default Values: If no arguments are provided, it defaults to /mnt/nvme1/swapfile for the location and 1GB for the size.
+	Dynamic Path Handling: It dynamically checks the available space in the directory derived from the provided or default swap file location.
+	Example of creating 4GB swap space at /mnt/nvme1/swapfile
+	```
+	./make_swap_space.sh  [-l <path_to_swap_file>] [-s <swap_size_in_GBi>]
+	```
+2. Configure IAA devices 
+    ```
+    ./enable_kernel_iaa
+    ```
+3. Active zswap by runnig
+   ```
+   ./enable_zswap.sh
+   ```
+4. Collect data and generate reports for all the compressors.
+   ```
+   ./collect_all.sh
+   ```
+ This will generate html files for CDFs of compress, decompress, compression ratio and page fault latencies and a summary.xlsx file. This will also generate (to stdout) P50 & P99 values.
 
 ## Additional details
-For running individual compressors low-level script can be utilized.
+For running individual compressors
 
-```
+   ```
     echo 'lz4' > /sys/module/zswap/parameters/compressor
     ./collect_bpftraces.sh
     echo 'deflate-iaa-canned' > /sys/module/zswap/parameters/compressor
     ./collect_bpftraces.sh
-   ``` 
+   ```
 ... and so on. This will generate a <compressor>_output file for each run
 
 Once all runs are collected, run the post-processing Python script:
-```
+   ```
     ./process_bpftraces.py
-```
+   ```
+This will generate html files for CDFs of compress, decompress, compression ratio and page fault latencies and a summary.xlsx file.
+This will also generate (to stdout) P50 & P99 values.
 
 

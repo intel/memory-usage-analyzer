@@ -1,10 +1,10 @@
 #!/usr/bin/python
 #SPDX-License-Identifier: BSD-3-Clause
-#Copyright (c) 2023, Intel Corporation
+#Copyright (c) 2026, Intel Corporation
 
 """plotter to draw different memory analysis plots in the html file"""
 import argparse
-import subprocess
+import subprocess  # nosec B404
 import bokeh
 
 from bokeh.io import save
@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.add_argument('-v', '--view', action='store_true', help='view in firefox')
 parser.add_argument('-t', '--title', default='memoryusageanalyzer plot', help='plot title')
 parser.add_argument('--height', type=int, default=250, help='plot height')
-parser.add_argument('-statfile', nargs='?', default='stats.csv.gz',\
+parser.add_argument('-statfile', nargs='?', default='stats.csv.gz',
        help='memoryusageanalyzer stats file')
 parser.add_argument('-respath', nargs='?', default='./', help='output result path')
 args = parser.parse_args()
@@ -27,6 +27,7 @@ args = parser.parse_args()
 COLOR_INDEX = 0
 COLOR_DICT = {}
 COLOR_PALETTE = Category10_10
+
 
 def next_color(name=None):
     """function for line color"""
@@ -42,10 +43,13 @@ def next_color(name=None):
 
     return result
 
-# read data
+
+# read data — result is already defragmented (.copy() applied inside read_stats_df)
 df = read_stats_df(f'{args.statfile}')
-df['zswap_swap'] = df.zswap_pool_total_size / (1 << 30)
-df['zram_swap'] = df.zram_mem_used_total / (1 << 30)
+df = df.assign(
+    zswap_swap=df.zswap_pool_total_size / (1 << 30),
+    zram_swap=df.zram_mem_used_total  / (1 << 30),
+).copy()  # .copy() consolidates blocks after the two new columns are added
 t_sample = df.time.diff().mean()
 source = ColumnDataSource(df)
 
@@ -72,11 +76,11 @@ p = figure(
 
 p.add_layout(Legend(), 'right')
 
-p.varea_stack(['active', 'zswap_swap','zram_swap','saved', 'page_cache'], x='t',\
-              color=['red', 'blue','aqua', 'grey', 'purple'], \
-              legend_label=['active', 'zpool size', 'zram memused total', 'compression savings',\
+p.varea_stack(['active', 'zswap_swap','zram_swap','saved', 'page_cache'], x='t',
+              color=['red', 'blue','aqua', 'grey', 'purple'],
+              legend_label=['active', 'zpool size', 'zram memused total', 'compression savings',
                             'page_cache'],
-              alpha=[ALPHA, ALPHA, ALPHA, ALPHA/2, ALPHA/2],\
+              alpha=[ALPHA, ALPHA, ALPHA, ALPHA/2, ALPHA/2],
               source=source)
 
 x_range = p.x_range
@@ -106,7 +110,7 @@ p = figure(
 p.add_layout(Legend(), 'right')
 p.line(df.t, df.swap, color=next_color(), alpha=ALPHA,
        line_width=WIDTH, legend_label='swap')
-p.line(df.t, (df.zswap_pool_total_size  + df.zram_mem_used_total) / (1<<30), color=next_color(),\
+p.line(df.t, (df.zswap_pool_total_size  + df.zram_mem_used_total) / (1<<30), color=next_color(),
        alpha=ALPHA, line_width=WIDTH, legend_label='zpool_size + zram')
 p.line(df.t, df.active , color=next_color(), alpha=ALPHA,
        line_width=WIDTH, legend_label='active')
@@ -138,42 +142,42 @@ p = figure(
 cgroup_total = get_cgroup_total(df)
 
 p.add_layout(Legend(), 'right')
-p.line(df.t, cgroup_total / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,\
+p.line(df.t, cgroup_total / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,
        legend_label='cgroup active_swap')
-p.line(df.t, df.total, color=next_color(), alpha=ALPHA, line_width=WIDTH,\
+p.line(df.t, df.total, color=next_color(), alpha=ALPHA, line_width=WIDTH,
        legend_label='active_swap')
 
 if 'cgroup_memory_current' in df.columns:
-    p.line(df.t, df.cgroup_memory_stat_active_anon / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_active_anon / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='active-anon')
-    p.line(df.t, df.cgroup_memory_stat_inactive_anon / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_inactive_anon / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='inactive-anon')
-    p.line(df.t, df.cgroup_memory_swap_current / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_swap_current / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='cgroup_total_swap')
-    p.line(df.t, df.cgroup_memory_stat_active_file / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_active_file / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='active-file')
-    p.line(df.t, df.cgroup_memory_stat_inactive_file / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_inactive_file / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='inactive-file')
-    p.line(df.t, df.cgroup_memory_stat_file / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_file / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='page_cache')
-    p.line(df.t, df.cgroup_memory_stat_unevictable / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_unevictable / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='unevictable')
 else:
-    p.line(df.t, df.cgroup_memory_stat_active_swap_active_anon / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_active_anon / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='active-anon')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_inactive_anon / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_inactive_anon / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='inactive-anon')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_swap / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_swap / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='cgroup_total_swap')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_active_file / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_active_file / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='active-file')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_inactive_file / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_inactive_file / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='inactive-file')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_page_cache / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_page_cache / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='page_cache')
-    p.line(df.t, df.cgroup_memory_stat_active_swap_unevictable / (1<<30), color=next_color(),\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_unevictable / (1<<30), color=next_color(),
            alpha=ALPHA, line_width=WIDTH, legend_label='unevictable')
-    p.line(df.t, df.cgroup_memory_stat_anon / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_anon / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='anon')
 p.legend.click_policy = 'hide'
 plots.append(p)
@@ -194,13 +198,13 @@ p = figure(
     x_range=x_range,)
 
 p.add_layout(Legend(), 'right')
-p.line(df.t, df.zram_orig_data_size / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,\
+p.line(df.t, df.zram_orig_data_size / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,
        legend_label='zram orig data size')
-p.line(df.t, df.zram_compr_data_size / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,\
+p.line(df.t, df.zram_compr_data_size / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,
        legend_label='zram compressed data size')
-p.line(df.t, df.zram_mem_used_total / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,\
+p.line(df.t, df.zram_mem_used_total / (1<<30), color=next_color(), alpha=ALPHA, line_width=WIDTH,
        legend_label='zram active_swap memory used')
-p.line(df.t, df.zram_huge_pages * 4096 / (1<<30), color=next_color(), alpha=ALPHA,\
+p.line(df.t, df.zram_huge_pages * 4096 / (1<<30), color=next_color(), alpha=ALPHA,
        line_width=WIDTH, legend_label='zram incompressible data size')
 p.line(df.t, df.zswap_pool_total_size / (1<<30), color=next_color(), alpha=ALPHA,
        line_width=WIDTH, legend_label='zswap pool active_swap size')
@@ -262,11 +266,13 @@ p.line(df.t, 4096 * df.zram_same_pages/ (1 << 30), color=next_color(), alpha=ALP
        line_width=WIDTH, legend_label='4096 * zram_same_pages')
 p.line(df.t, df.zswap_pool_total_size / (1 << 30), color=next_color(), alpha=ALPHA,
        line_width=WIDTH, legend_label='zpool_size')
-p.line(df.t, 4096 * df.zswap_stored_pages/ (1 << 30), color=next_color(), alpha=ALPHA,
-       line_width=WIDTH, legend_label='4096 * zswap_stored_pages')
-p.line(df.t, 4096 * df.zswap_same_filled_pages/ (1 << 30), color=next_color(), alpha=ALPHA,
-       line_width=WIDTH, legend_label='4096 * zswap_same_filled_pages')
-p.line(df.t, (df.zswap_pool_total_size + df.zram_mem_used_total) / (1<<30), color=next_color(),\
+if 'zswap_stored_pages' in df.columns:
+    p.line(df.t, 4096 * df.zswap_stored_pages/ (1 << 30), color=next_color(), alpha=ALPHA,
+           line_width=WIDTH, legend_label='4096 * zswap_stored_pages')
+if 'zswap_same_filled_pages' in df.columns:
+    p.line(df.t, 4096 * df.zswap_same_filled_pages/ (1 << 30), color=next_color(), alpha=ALPHA,
+           line_width=WIDTH, legend_label='4096 * zswap_same_filled_pages')
+p.line(df.t, (df.zswap_pool_total_size + df.zram_mem_used_total) / (1<<30), color=next_color(),
        alpha=ALPHA, line_width=WIDTH, legend_label='zpool_size + zram')
 
 p.line(df.t, df.zram_mem_used_total/ (1 << 30), color=next_color(), alpha=ALPHA,
@@ -313,16 +319,21 @@ p = figure(
 
 p.add_layout(Legend(), 'right')
 
+# Assign both CPU columns at once to avoid DataFrame fragmentation warnings
 if 'cgroup_memory_current' in df.columns:
-    df['y_user'] = df.cgroup_cpu_stat_user_usec.diff() / 1000000 / t_sample * 100
-    df['y_system'] = df.cgroup_cpu_stat_system_usec.diff() / 1000000 / t_sample * 100
+    df = df.assign(
+        y_user=df.cgroup_cpu_stat_user_usec.diff()    / 1000000 / t_sample * 100,
+        y_system=df.cgroup_cpu_stat_system_usec.diff() / 1000000 / t_sample * 100,
+    )
 else:
-    df['y_user'] = df.cgroup_cpu_cpuacct_stat_user.diff() / t_sample
-    df['y_system'] = df.cgroup_cpu_cpuacct_stat_system.diff() / t_sample
+    df = df.assign(
+        y_user=df.cgroup_cpu_cpuacct_stat_user.diff()   / t_sample,
+        y_system=df.cgroup_cpu_cpuacct_stat_system.diff() / t_sample,
+    )
 source = ColumnDataSource(df)
-p.varea_stack(['y_user', 'y_system'], x='t', color=('blue', 'green'), alpha=0.1,\
+p.varea_stack(['y_user', 'y_system'], x='t', color=('blue', 'green'), alpha=0.1,
               legend_label=('user', 'system'), source=source)
-p.vline_stack(['y_user', 'y_system'], x='t', color=('blue', 'green'),\
+p.vline_stack(['y_user', 'y_system'], x='t', color=('blue', 'green'),
               legend_label=('user', 'system'), source=source)
 
 p.legend.click_policy = 'hide'
@@ -343,9 +354,9 @@ if 'cgroup_memory_pressure_some_total' in df.columns:
 
     p.add_layout(Legend(), 'right')
 
-    p.line(df.t, df.cgroup_memory_pressure_some_total.diff() / 1000 / t_sample, color='red',\
+    p.line(df.t, df.cgroup_memory_pressure_some_total.diff() / 1000 / t_sample, color='red',
            alpha=ALPHA, line_width=WIDTH, legend_label='some pressure')
-    p.line(df.t, df.cgroup_memory_pressure_full_total.diff() / 1000 / t_sample, color='blue',\
+    p.line(df.t, df.cgroup_memory_pressure_full_total.diff() / 1000 / t_sample, color='blue',
            alpha=ALPHA, line_width=WIDTH, legend_label='full pressure')
     p.legend.click_policy = 'hide'
     plots.append(p)
@@ -364,12 +375,12 @@ p = figure(
     x_range=x_range,)
 
 p.add_layout(Legend(), 'right')
-p.line(df.t, df.cgroup_memory_stat_pgmajfault.diff() / t_sample, color='red', alpha=ALPHA,\
+p.line(df.t, df.cgroup_memory_stat_pgmajfault.diff() / t_sample, color='red', alpha=ALPHA,
        line_width=WIDTH, legend_label='Major Page fault')
-p.line(df.t, df.cgroup_memory_stat_pgfault.diff() / t_sample, color='blue', alpha=ALPHA,\
+p.line(df.t, df.cgroup_memory_stat_pgfault.diff() / t_sample, color='blue', alpha=ALPHA,
        line_width=WIDTH, legend_label='Total Page Fault(Major+Minor)')
 if 'cgroup_memory_stat_active_swap_pgfault' in df.columns:
-    p.line(df.t, df.cgroup_memory_stat_active_swap_pgfault.diff() / t_sample, color='green',\
+    p.line(df.t, df.cgroup_memory_stat_active_swap_pgfault.diff() / t_sample, color='green',
            alpha=ALPHA, line_width=WIDTH, legend_label='Total Page Fault(Major+Minor)')
 p.legend.click_policy = 'hide'
 plots.append(p)
@@ -392,13 +403,13 @@ if 'zswap_primary_decompressions' in df.columns:
         x_range=x_range,)
 
     p.add_layout(Legend(), 'right')
-    p.line(df.t, df.zswap_primary_compressions.diff() / t_sample, color='red', alpha=ALPHA,\
+    p.line(df.t, df.zswap_primary_compressions.diff() / t_sample, color='red', alpha=ALPHA,
            line_width=WIDTH, legend_label='primary_compressions')
-    p.line(df.t, df.zswap_secondary_compressions.diff() / t_sample, color='blue', alpha=ALPHA,\
+    p.line(df.t, df.zswap_secondary_compressions.diff() / t_sample, color='blue', alpha=ALPHA,
            line_width=WIDTH, legend_label='secondary_compressions')
-    p.line(df.t, df.zswap_primary_decompressions.diff() / t_sample, color='green', alpha=ALPHA,\
+    p.line(df.t, df.zswap_primary_decompressions.diff() / t_sample, color='green', alpha=ALPHA,
            line_width=WIDTH, legend_label='primary_decompressions')
-    p.line(df.t, df.zswap_secondary_decompressions.diff() / t_sample, color='black', alpha=ALPHA,\
+    p.line(df.t, df.zswap_secondary_decompressions.diff() / t_sample, color='black', alpha=ALPHA,
            line_width=WIDTH, legend_label='secondary_decompressions')
     p.legend.click_policy = 'hide'
     plots.append(p)
@@ -413,9 +424,9 @@ if 'zswap_decompressions' in df.columns:
         x_range=x_range,)
 
     p.add_layout(Legend(), 'right')
-    p.line(df.t, df.zswap_compressions.diff() / t_sample, color='red', alpha=ALPHA,\
+    p.line(df.t, df.zswap_compressions.diff() / t_sample, color='red', alpha=ALPHA,
            line_width=WIDTH, legend_label='compressions')
-    p.line(df.t, df.zswap_decompressions.diff() / t_sample, color='green', alpha=ALPHA,\
+    p.line(df.t, df.zswap_decompressions.diff() / t_sample, color='green', alpha=ALPHA,
            line_width=WIDTH, legend_label='decompressions')
     p.legend.click_policy = 'hide'
     plots.append(p)
@@ -438,13 +449,13 @@ if 'zswap_primary_decompressions' in df.columns:
         x_range=x_range,)
 
     p.add_layout(Legend(), 'right')
-    p.line(df.t, df.zswap_primary_compressions - df.zswap_primary_compressions.min(), color='red',\
+    p.line(df.t, df.zswap_primary_compressions - df.zswap_primary_compressions.min(), color='red',
            alpha=ALPHA, line_width=WIDTH, legend_label='primary_compressions')
-    p.line(df.t, df.zswap_secondary_compressions - df.zswap_secondary_compressions.min(),\
+    p.line(df.t, df.zswap_secondary_compressions - df.zswap_secondary_compressions.min(),
            color='blue',alpha=ALPHA, line_width=WIDTH, legend_label='secondary_compressions')
-    p.line(df.t, df.zswap_primary_decompressions - df.zswap_primary_decompressions.min(),\
+    p.line(df.t, df.zswap_primary_decompressions - df.zswap_primary_decompressions.min(),
            color='green', alpha=ALPHA, line_width=WIDTH, legend_label='primary_decompressions')
-    p.line(df.t, df.zswap_secondary_decompressions - df.zswap_secondary_decompressions.min(),\
+    p.line(df.t, df.zswap_secondary_decompressions - df.zswap_secondary_decompressions.min(),
             color='black', alpha=ALPHA, line_width=WIDTH, legend_label='secondary_decompressions')
     p.legend.click_policy = 'hide'
     plots.append(p)
@@ -459,7 +470,7 @@ if 'zswap_decompressions' in df.columns:
         x_range=x_range,)
 
     p.add_layout(Legend(), 'right')
-    p.line(df.t, df.zswap_compressions - df.zswap_compressions.min(), color='green', alpha=ALPHA,\
+    p.line(df.t, df.zswap_compressions - df.zswap_compressions.min(), color='green', alpha=ALPHA,
            line_width=WIDTH, legend_label='compressions')
     p.line(df.t, df.zswap_decompressions - df.zswap_decompressions.min(), color='blue',
            alpha=ALPHA, line_width=WIDTH, legend_label='decompressions')
@@ -481,30 +492,30 @@ p = figure(
 
 p.add_layout(Legend(), 'right')
 if 'cgroup_memory_current' in df.columns:
-    p.line(df.t, df.cgroup_memory_stat_anon / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_anon / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='anon')
-    p.line(df.t, df.cgroup_memory_stat_file / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_file / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='file')
-    p.line(df.t, df.cgroup_memory_stat_kernel_stack / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_kernel_stack / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='kernel_stack')
 
     if 'cgroup_memory_stat_slab' in df.columns:
-        p.line(df.t, df.cgroup_memory_stat_slab / (1<<30), color=next_color(), alpha=ALPHA,\
+        p.line(df.t, df.cgroup_memory_stat_slab / (1<<30), color=next_color(), alpha=ALPHA,
                line_width=WIDTH, legend_label='slab')
-        p.line(df.t, df.cgroup_memory_stat_slab_reclaimable / (1<<30), color=next_color(),\
+        p.line(df.t, df.cgroup_memory_stat_slab_reclaimable / (1<<30), color=next_color(),
                alpha=ALPHA, line_width=WIDTH, legend_label='slab_reclaimable')
-        p.line(df.t, df.cgroup_memory_stat_slab_unreclaimable / (1<<30), color=next_color(),\
+        p.line(df.t, df.cgroup_memory_stat_slab_unreclaimable / (1<<30), color=next_color(),
                alpha=ALPHA, line_width=WIDTH, legend_label='slab_unreclaimabl')
 
-    p.line(df.t, df.cgroup_memory_stat_sock / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_sock / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='sock')
-    p.line(df.t, df.cgroup_memory_stat_shmem / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_shmem / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='shmem')
-    p.line(df.t, df.cgroup_memory_stat_file_mapped / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_file_mapped / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='file_mapped')
-    p.line(df.t, df.cgroup_memory_stat_file_dirty / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_file_dirty / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='file_dirty')
-    p.line(df.t, df.cgroup_memory_stat_file_writeback / (1<<30), color=next_color(), alpha=ALPHA,\
+    p.line(df.t, df.cgroup_memory_stat_file_writeback / (1<<30), color=next_color(), alpha=ALPHA,
            line_width=WIDTH, legend_label='file_writeback')
 
     p.legend.click_policy = 'hide'
@@ -518,4 +529,4 @@ print(f'Generating plots {FILENAME}')
 grid = column(plots, sizing_mode='stretch_width')
 save(grid, FILENAME, bokeh.resources.INLINE, args.title)
 if args.view:
-    subprocess.run(f'firefox {FILENAME} &', shell=True, check=False)
+    subprocess.Popen(['firefox', FILENAME])  # nosec
