@@ -56,6 +56,7 @@ def parse_input(lines):
 
 def enrich_rows(data):
     for r in data:
+        r["swap_mode"] = r.get("swap_mode", "zswap").strip()
         r["memory_max"] = r.get("memory_max", "").strip()
         r["memory_peak"] = to_int(r.get("memory_peak", 0))
         r["memory_swap_peak"] = to_int(r.get("memory_swap_peak", 0))
@@ -83,6 +84,8 @@ def enrich_rows(data):
         sys.exit(1)
 
     base_peak = baseline["memory_peak"] / GiB
+    if baseline["swap_mode"] == "zram" and baseline["zswap_pool_size"] is not None:
+        base_peak += baseline["zswap_pool_size"]
     base_tput_kops = baseline["throughput_kops"]
     base_p99 = baseline["p99"]
     base_prefill_cpu = baseline["prefill_cpu_pct"]
@@ -96,6 +99,15 @@ def enrich_rows(data):
         name = r["scenario"]
         peak_gib = r["memory_peak"] / GiB
         swap_gib = r["memory_swap_peak"] / GiB
+
+        # For zram mode: memory.peak does NOT include zram's physical memory
+        # usage (zram is a block device outside cgroup memory accounting).
+        # Add zram pool size to get true physical memory, matching the parent
+        # project's formula: max_memory = cgroup_memory_current + zram_mem_used_total
+        # For zswap mode: memory.peak already includes the zswap pool (kernel
+        # accounts zpool inside memory.current), so no adjustment needed.
+        if r["swap_mode"] == "zram" and r["zswap_pool_size"] is not None:
+            peak_gib += r["zswap_pool_size"]
 
         r["peak_gib"] = peak_gib
         r["save_gib"] = base_peak - peak_gib

@@ -18,9 +18,16 @@ rm -rf *.html
 mkdir  ${LOGDIR}
 mkdir  ${REDIS_CONFIGS}
 
-no_of_servers=${1-1}
-compressor=${2:-deflate-iaa_r1_p3}
-db_file=${3-import_movies_10000r_10c.csv}
+swap_mode=${1:-zswap}
+no_of_servers=${2-1}
+compressor=${3:-deflate-iaa_r1_p3}
+db_file=${4-import_movies_10000r_10c.csv}
+
+if [[ "$swap_mode" != "zswap" && "$swap_mode" != "zram" ]]; then
+    echo "Usage: $0 [zswap|zram] [no_of_servers] [compressor] [db_file]"
+    echo "       Default: zswap"
+    exit 1
+fi
 
 # Reserve the 2 CPUs for system level activites
 redis_server_cpu_start=2
@@ -80,8 +87,13 @@ run_scenario() {
     echo "$limit" > "$cg/memory.max"
 
     mkdir -p "${logdir}/${scenario}"
-    # Monitor zswap stats
-    ./zswap_log.sh 1 "${logdir}/${scenario}/zswap_run.csv"  &
+    # Monitor compressed swap stats (zswap or zram)
+    local swap_csv="${logdir}/${scenario}/zswap_run.csv"
+    if [[ "$swap_mode" == "zram" ]]; then
+        ./zram_log.sh 1 "$swap_csv" &
+    else
+        ./zswap_log.sh 1 "$swap_csv" &
+    fi
 
     # Start workload and move it into cgroup ASAP
     ./redis_server_start.sh ${no_of_servers} ${redis_server_cpu_start} &
@@ -107,10 +119,14 @@ run_scenario() {
     memory_max=$(cat "$cg/memory.max")
     memory_swap_peak=$(cat "$cg/memory.swap.peak")
 
-    # Stop zswap monitor
-    pkill -f zswap_log.sh
-    zswap_pool_size=$(./zswap_report.sh ${logdir}/${scenario}/zswap_run.csv | awk '/Pool size:/{ print $3}')
-    comp_ratio=$(./zswap_report.sh ${logdir}/${scenario}/zswap_run.csv | awk '/Compression ratio:/{ print $3}')
+    # Stop swap monitor
+    if [[ "$swap_mode" == "zram" ]]; then
+        pkill -f zram_log.sh
+    else
+        pkill -f zswap_log.sh
+    fi
+    zswap_pool_size=$(./zswap_report.sh "$swap_csv" | awk '/Pool size:/{ print $3}')
+    comp_ratio=$(./zswap_report.sh "$swap_csv" | awk '/Compression ratio:/{ print $3}')
     
     throughput_avg=0
     p99_max=0
@@ -125,7 +141,7 @@ run_scenario() {
     throughput_avg=$(echo "scale=2;$throughput_avg/$no_of_servers" | bc)
 
     
-    echo "scenario:$scenario, memory_max:$memory_max, memory_peak:$memory_peak, zswap_pool_size:$zswap_pool_size, comp_ratio:$comp_ratio, memory_swap_peak:$memory_swap_peak, throughput:$throughput_avg, p99:$p99_max, prefill_cpu_pct:$prefill_cpu_pct, prefill_user_pct:$prefill_user_pct, prefill_sys_pct:$prefill_sys_pct, run_cpu_pct:$run_cpu_pct, run_user_pct:$run_user_pct, run_sys_pct:$run_sys_pct" | tee "${logdir}/${scenario}.log"
+    echo "scenario:$scenario, swap_mode:$swap_mode, memory_max:$memory_max, memory_peak:$memory_peak, zswap_pool_size:$zswap_pool_size, comp_ratio:$comp_ratio, memory_swap_peak:$memory_swap_peak, throughput:$throughput_avg, p99:$p99_max, prefill_cpu_pct:$prefill_cpu_pct, prefill_user_pct:$prefill_user_pct, prefill_sys_pct:$prefill_sys_pct, run_cpu_pct:$run_cpu_pct, run_user_pct:$run_user_pct, run_sys_pct:$run_sys_pct" | tee "${logdir}/${scenario}.log"
 
 }
 
@@ -159,10 +175,17 @@ for comp in "${compressor_list[@]}"; do
     fi
 
 
-    "${THIS_DIR}/../scripts/config_sys_zswap.sh" \
-        -c "$comp_algo" \
-        -r "$reclaim_batchsize" \
-        -p "$page_cluster"
+    if [[ "$swap_mode" == "zram" ]]; then
+        "${THIS_DIR}/../scripts/config_sys_zram.sh" \
+            -c "$comp_algo" \
+            -r "$reclaim_batchsize" \
+            -p "$page_cluster"
+    else
+        "${THIS_DIR}/../scripts/config_sys_zswap.sh" \
+            -c "$comp_algo" \
+            -r "$reclaim_batchsize" \
+            -p "$page_cluster"
+    fi
 
    
     LOGDIR_COMP=${LOGDIR}/${comp} 

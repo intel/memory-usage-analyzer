@@ -71,7 +71,7 @@ ${SCRIPT_DIR}/enable_iaa.sh;
 ZRAM_PARAMS="-c ${ZRAM_COMP_ALGORITHM}"
 [[ ! -z $ZRAM_MEM_LIMIT ]] && ZRAM_PARAMS+=" -l $ZRAM_MEM_LIMIT"
 [[ ! -z $ZRAM_DISK_SIZE ]] && ZRAM_PARAMS+=" -s $ZRAM_DISK_SIZE"
-if [[ "$ZRAM_DISK_SIZE" -ne "0" || -z $ZRAM_DISK_SIZE ]]; then
+if [[ -z "$ZRAM_DISK_SIZE" || "$ZRAM_DISK_SIZE" -ne 0 ]]; then
     echo "Configuring zram"
     ${SCRIPT_DIR}/config_zram.sh ${ZRAM_PARAMS} 
 else
