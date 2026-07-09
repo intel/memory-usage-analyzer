@@ -4,7 +4,12 @@
 
 ## Prerequisite
 This framework depends on IAA RFC kernel patches. Please see more instructions here. https://github.com/intel-innersource/applications.benchmarking.memory-usage-analyzer/wiki/Integration-of-IAA-RFC-patches-to-upstream-kernel
-## Run in Baremetal
+
+## Quick swap-in/swap-out test
+This test will show the swap-in and swap-out latency to do a sanity check for lzo and deflate-iaa
+./benchmark.sh
+
+## Detailed Analysis for batching (currently broken) 
 1. Run
    ```
     ./make_swap_space.sh
