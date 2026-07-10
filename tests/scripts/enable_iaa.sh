@@ -92,7 +92,7 @@ LOG="configure_iaa.log"
 wq_size=$(( 128 / iaa_wqs ))
 
 # Take care of the enumeration, if DSA is enabled.
-dsa=`lspci | grep -c 0b25`
+dsa=`lspci -Dnn | grep -c 0b25`
 # Set enumeration parameters for iax devices
 first=0
 step=1
