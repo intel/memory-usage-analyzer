@@ -41,10 +41,18 @@ if [ ! -f "$SWAP" ] ; then
 fi
 
 
-# Install bpftrace if it is not available
-if [ ! -f /usr/bin/bpftrace ]; then
+# Install bpftrace if it is not available (supports both Ubuntu/Debian and RHEL/CentOS)
+if ! command -v bpftrace >/dev/null 2>&1; then
     echo "Installing bpftrace..."
-    yum install bpftrace -y || handle_error "Failed to install bpftrace"
+    if command -v apt-get >/dev/null 2>&1; then
+        apt-get update -y && apt-get install -y bpftrace || handle_error "Failed to install bpftrace"
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y bpftrace || handle_error "Failed to install bpftrace"
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y bpftrace || handle_error "Failed to install bpftrace"
+    else
+        handle_error "No supported package manager (apt-get/dnf/yum) found to install bpftrace"
+    fi
 fi
 
 # Build the madvise_test executable if not already built

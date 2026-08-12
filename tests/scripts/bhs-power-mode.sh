@@ -9,6 +9,7 @@ echo ""
 echo " Options:"
 echo " --default                : set default power mode"
 echo " --latency-optimized-mode : set latency optimized mode"
+echo " --status                 : show current power mode (read-only)"
 echo
 
 # Run the pcm-tpmi command to determine I/O and compute dies

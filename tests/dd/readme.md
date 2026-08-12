@@ -1,9 +1,19 @@
 # Introduction
 This is a microbenchmark for zram using dd tool. It measures dd bandwidth when zram is configured with different compression algorithms. zram is mounted as a drive at /mnt/zram_disk and dd try to read and write file from it. silesia.tar is used a the data content. Metrics reported by dd is monitored. direct mode is selected for IO to by pass page cache to get zram stats.
 
-# Setting up Environment
-Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [README](../../README.md#prerequisites).
+# Prerequisite
+1. **Kernel Configuration**: Ensure your kernel has IAA enabled for zram
+2. **Install Dependencies**: Install the applications.benchmarking.iax-memcomp package following the [Install](https://github.com/intel-innersource/applications.benchmarking.iax-memcomp/#install)
 
+# Setting up Enviroment
+You can skip this if the enviroment is already available
+```
+git clone https://github.com/intel-innersource/applications.benchmarking.iax-memcomp.git iax-memcomp
+cd iax-memcomp
+python -m venv ./iaaenv
+source ./iaaenv/bin/activate
+pip install -e .
+```
 
 # Build dd
 

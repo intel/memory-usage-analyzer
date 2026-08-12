@@ -92,6 +92,15 @@ fi
 echo "Setting compression algorithm to: ${BASE_COMP_ALGORITHM}"
 echo ${BASE_COMP_ALGORITHM} > /sys/block/zram0/comp_algorithm
 
+# zram silently keeps the previous (or default) algorithm active when the
+# requested one isn't registered (e.g. deflate-iaa without the in-tree
+# iaa_crypto driver), so verify the switch actually took effect.
+active_comp=$(sed -n 's/.*\[\(.*\)\].*/\1/p' /sys/block/zram0/comp_algorithm)
+if [[ "${active_comp}" != "${BASE_COMP_ALGORITHM}" ]]; then
+    echo "ERROR: compression algorithm '${BASE_COMP_ALGORITHM}' is not available on this kernel (active: '${active_comp}')" >&2
+    exit 1
+fi
+
 echo ${ZRAM_DISK_SIZE} > /sys/block/zram0/disksize
 echo ${ZRAM_MEM_LIMIT} > /sys/block/zram0/mem_limit
 

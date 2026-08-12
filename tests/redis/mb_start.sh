@@ -8,6 +8,35 @@ db_file_type=$(echo "${db_file##*.}")
 cpu_start=${3:-2}
 log_dir=${4-test}
 mode=${5-"all"}
+memtier_cpus_per_instance=${6:-1}
+client_cores_override=${7:-}  # Optional: pre-computed client cores list from get_redis_cpu_plan.sh
+
+
+numactl_client_opts=(--localalloc)
+
+get_memtier_cpu_list_for_instance() {
+  local idx="$1"
+  local per_instance="$2"
+  local offset=$(( (idx - 1) * per_instance ))
+  local need=$(( offset + per_instance ))
+
+  if [[ "$need" -gt "${#MEMTIER_CPU_POOL[@]}" ]]; then
+    echo "ERROR: not enough CPUs in memtier pool for instance ${idx} (need ${per_instance}, pool size ${#MEMTIER_CPU_POOL[@]})"
+    exit 1
+  fi
+
+  local -a slice=("${MEMTIER_CPU_POOL[@]:offset:per_instance}")
+  local cpu_list
+  cpu_list=$(IFS=,; echo "${slice[*]}")
+  echo "$cpu_list"
+}
+
+setup_memtier_cpu_pool() {
+  # Convert client_cores_override (from planner) to bash array
+  # Input format can have brackets: [86,87,88,89] or bare: 86,87,88,89
+  local cores_clean="${client_cores_override//[[\]]/}"  # Remove brackets
+  mapfile -t MEMTIER_CPU_POOL < <(tr ',' '\n' <<<"$cores_clean")
+}
 
 
 # Clear caches
@@ -36,7 +65,7 @@ clean_up() {
 
 get_max_keys() {
     port_no=$1
-    max_keys=$(numactl --cpunodebind=0 --localalloc redis-cli -h localhost -p $port_no info | grep  db0:keys | cut -d, -f1 | cut -d= -f2) 
+  max_keys=$(numactl "${numactl_client_opts[@]}" redis-cli -h localhost -p $port_no info | grep  db0:keys | cut -d, -f1 | cut -d= -f2) 
     echo "Max Keys: ${max_keys}"
     
 }
@@ -111,6 +140,7 @@ populate_redis_server_from_csv() {
    port_no=9001
    # populate the databse if the input if .csv
    echo "Populating database started (parallel loading)"
+   setup_memtier_cpu_pool
    pids=()
    for (( i=1; i<=$no_of_servers;i++)); do
        echo "Starting data population for Redis server on port $port_no in background..."
@@ -119,9 +149,8 @@ populate_redis_server_from_csv() {
         # Removed header from csv
         num_of_lines=$((num_of_lines-1))
         echo "Adding ${num_of_lines} keys"
-        cpu1=$(( cpu_start + 2*i ))
-        cpu2=$(( cpu_start + 2*i + 1))
-	cmd=(numactl -C $cpu1,$cpu2 --localalloc memtier_benchmark --server=localhost --port=$port_no --protocol=redis --ratio=1:0 --key-pattern=P:P -t 1 -c 1 --data-import=$db_file -n  ${num_of_lines} )
+        cpu_list=$(get_memtier_cpu_list_for_instance "$i" "$memtier_cpus_per_instance")
+        cmd=(numactl -C "$cpu_list" "${numactl_client_opts[@]}" memtier_benchmark --server=localhost --port=$port_no --protocol=redis --ratio=1:0 --key-pattern=P:P -t 1 -c 1 --data-import=$db_file -n  ${num_of_lines} )
 	echo "Running: ${cmd[*]}"
 	"${cmd[@]}" &
 	pids+=("$!")
@@ -162,6 +191,10 @@ run_memtier(){
     sd_ratio=6
     # Get total number of keys. This will help with controlling the ranges to sweep
     port_no=9001
+    
+    # Setup CPU pool with override or fallback
+    setup_memtier_cpu_pool
+    
     pids=()
     for (( i=1; i<=$no_of_servers; i++)); do
       max_keys=0
@@ -173,9 +206,8 @@ run_memtier(){
       fi
       # Force to only specific CPU core
       echo "Run memtier benchmark instance:${i} ... "
-      cpu1=$(( cpu_start + 2*i ))
-      cpu2=$(( cpu_start + 2*i + 1))
-      cmd=(numactl -C $cpu1,$cpu2 --localalloc memtier_benchmark -s localhost -p $port_no --key-prefix= --key-minimum=1 --key-maximum=${max_keys} --key-stddev=${key_spread} --test-time=$duration --show-config --threads=4 --clients=4 --pipeline=1  --ratio=0:1 --key-pattern=G:G )
+      cpu_list=$(get_memtier_cpu_list_for_instance "$i" "$memtier_cpus_per_instance")
+      cmd=(numactl -C "$cpu_list" "${numactl_client_opts[@]}" memtier_benchmark -s localhost -p $port_no --key-prefix= --key-minimum=1 --key-maximum=${max_keys} --key-stddev=${key_spread} --test-time=$duration --show-config --threads=1 --clients=4 --pipeline=1  --ratio=20:80 --key-pattern=G:G )
       echo "Running: ${cmd[*]}  > ${log_dir}/run_${i}.log"
       "${cmd[@]}" > "${log_dir}/run_${i}.log"  &
       pids+=($!)
@@ -199,7 +231,7 @@ run_memtier(){
 #run_memtier 10
 #clean_up
 
-[[ "$mode" == "prefill" || "$mode" == "all" ]] && clear_cache; populate_redis_server_from_${db_file_type}
+[[ "$mode" == "prefill" || "$mode" == "all" ]] && clear_cache && populate_redis_server_from_${db_file_type}
 echo "Done with prefill"
 [[ "$mode" == "run"     || "$mode" == "all" ]] && run_memtier 120
 echo "Done with run"

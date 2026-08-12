@@ -25,6 +25,10 @@ Intel® Memory Usage Analyzer can
 ## Requirements
 
 * Linux system with sudo access for configuration scripts
+* Supported Linux distributions: CentOS/RHEL and Ubuntu/Debian. The workload
+  setup and benchmark scripts under [tests/](tests/) auto-detect the available
+  package manager (`dnf`/`yum` on CentOS/RHEL, `apt-get` on Ubuntu/Debian), so
+  the same commands work on both.
 * Linux kernel version >= v6.8
   * zswap support 
   * swap accounting enabled - add kernel parameter  `swapaccount=1` 

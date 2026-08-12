@@ -29,9 +29,9 @@ fi
 if ! command -v redis-server  &> /dev/null 
 then
     echo "Installing Redis"
-    wget https://download.redis.io/releases/redis-6.0.10.tar.gz
-    tar xzf redis-6.0.10.tar.gz
-    cd redis-6.0.10
+    wget https://download.redis.io/releases/redis-8.8.0.tar.gz
+    tar xzf redis-8.8.0.tar.gz
+    cd redis-8.8.0
     make
     make install
 else
@@ -40,10 +40,15 @@ fi
 
 if ! command -v memtier_benchmark  &> /dev/null 
 then
-    yum install libevent libevent-devel pcre-devel numactl -y
+    if [ "$OS" == "Centos" ];then
+        yum install libevent libevent-devel pcre-devel numactl -y
+    else
+        apt install -y build-essential autoconf automake libtool pkg-config \
+                       libevent-dev libpcre3-dev numactl
+    fi
     git clone https://github.com/RedisLabs/memtier_benchmark.git
     cd memtier_benchmark
-    git checkout 2.2.2
+    git checkout 2.4.0
     autoreconf -ivf
     ./configure
     make

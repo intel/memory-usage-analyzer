@@ -31,11 +31,21 @@ iaa_global_queues=1
 iaa_global_consec_descs=1
 distribute_comps="Y"
 distribute_decomps="N"
+force_reconfig=1
 
 # Function to handle errors
 handle_error() {
     echo "Error: $1"
     exit 1
+}
+
+# Report the IAA deflate crypto variants the driver registered (e.g.
+# deflate-iaa and deflate-iaa-dynamic). Both are usable by zram/zswap once IAA
+# is crypto-bound, even though zram's comp_algorithm list may not advertise them.
+report_iaa_algorithms() {
+    local algos
+    algos=$(awk '/^driver[[:space:]]*:[[:space:]]*deflate-iaa/{print $3}' /proc/crypto | sort -u | tr '\n' ' ')
+    echo "IAA crypto algorithms registered: ${algos:-none}"
 }
 
 # Process arguments - unified approach for both short and long options
@@ -66,14 +76,20 @@ while [[ $# -gt 0 ]]; do
             distribute_decomps="$2"
             shift 2
             ;;
+        -F|--force)
+            force_reconfig=1
+            shift
+            ;;
         -h)
-            echo "Usage: $0 [-d <device_count>][-q <wq_per_device>][-v][-c][--dc Y|N][--dd Y|N]"
+            echo "Usage: $0 [-d <device_count>][-q <wq_per_device>][-v][-c][--dc Y|N][--dd Y|N][-F]"
             echo "       -d  - number of devices per socket (default: ${device_num_per_socket})"
             echo "       -q  - number of WQs per device (default: ${iaa_wqs})"
             echo "       -v  - verbose mode"
             echo "       -c  - enable verify compress"
             echo "       --dc Y|N - distribute compression operations (default: Y)"
             echo "       --dd Y|N - distribute decompression operations (default: N)"
+            echo "       -F  - force teardown+reconfigure even if IAA is already crypto-bound"
+            echo "             (unsafe on kernels with the idxd EVL bug, e.g. stock Ubuntu 6.8)"
             echo "       -h  - help"
             exit 0
             ;;
@@ -92,26 +108,78 @@ LOG="configure_iaa.log"
 wq_size=$(( 128 / iaa_wqs ))
 
 # Take care of the enumeration, if DSA is enabled.
-dsa=`lspci | grep -c 0b25`
+dsa=`lspci -Dnn | grep -c 0b25`
 # Set enumeration parameters for iax devices
 first=0
 step=1
 [[ $dsa -gt 0 && -d /sys/bus/dsa/devices/dsa0 ]] && first=1 && step=2
 [[ $verbose == 1 ]] && echo "first index: ${first}, step: ${step}"
 
+# ---------------------------------------------------------------------------
+# Fast path: the in-tree iaa_crypto driver (mainline / Ubuntu / recent CentOS
+# kernels) auto-configures and enables IAA devices at load, binding one WQ per
+# device to the 'crypto' driver. On such kernels, tearing that setup down with
+# 'accel-config disable-device' (or reloading iaa_crypto) triggers a NULL-ptr
+# dereference in idxd_device_evl_free and oopses the machine. If IAA is already
+# configured for crypto, use it as-is and skip the destructive reconfiguration.
+# Pass -F/--force to override (only safe on kernels without the idxd EVL bug,
+# e.g. the out-of-tree Intel driver where devices boot disabled).
+iaa_already_configured() {
+    local w bound=0
+    for w in /sys/bus/dsa/devices/iax*/wq*; do
+        [[ -e "$w/state" ]] || continue
+        if [[ "$(cat "$w/state" 2>/dev/null)" == "enabled" && \
+              "$(cat "$w/driver_name" 2>/dev/null)" == "crypto" ]]; then
+            bound=1
+        fi
+    done
+    [[ $bound -eq 1 ]]
+}
+
+if [[ "${force_reconfig}" != "1" ]] && iaa_already_configured; then
+    echo "IAA already configured and crypto-bound by the kernel driver; skipping reconfiguration."
+    echo "(pass -F/--force to tear down and reconfigure -- unsafe on kernels with the idxd EVL bug)"
+    # Apply global, device-independent crypto tunables best-effort (no teardown).
+    [[ -w ${VERIFY_COMPRESS_PATH} ]] && echo ${verify_compress} > ${VERIFY_COMPRESS_PATH} 2>/dev/null
+    [[ -w /sys/bus/dsa/drivers/crypto/sync_mode ]] && echo ${iaa_crypto_mode} > /sys/bus/dsa/drivers/crypto/sync_mode 2>/dev/null
+
+    echo -e "\nDetailed IAA Configuration:"
+    total_devices=$(accel-config list 2>/dev/null | grep -c '"dev":"iax')
+    total_wqs=$(accel-config list 2>/dev/null | grep -c '"dev":"wq[0-9]*\.[0-9]*"')
+    echo "Number of IAA devices per socket: $(( total_devices / sockets ))"
+    [ ${total_devices} -gt 0 ] && echo "Work queues per IAA device: $(( total_wqs / total_devices ))" || echo "Work queues per IAA device: 0"
+    report_iaa_algorithms
+    exit 0
+fi
+
 # Switch to software compressors and disable IAAs to have a clean start
 COMPRESSOR=/sys/module/zswap/parameters/compressor
 last_comp=`cat ${COMPRESSOR}`
 echo lzo > ${COMPRESSOR}
 
-[[ $verbose == 1 ]] && echo "Disable IAA devices before configuring" 
+# NOTE: On some kernels (observed on stock Ubuntu 6.8.0-*-generic) calling
+# 'accel-config disable-device' on a device triggers a NULL-pointer dereference
+# in the idxd driver (idxd_device_evl_free -> idxd_device_drv_remove) that
+# oopses the kernel. Freshly loaded IAA devices are already "disabled", so only
+# issue disable commands for components that are currently "enabled". This
+# avoids the crash on a clean boot and is a no-op on kernels without the bug.
+dev_state() { cat "/sys/bus/dsa/devices/$1/state" 2>/dev/null; }
+
+[[ $verbose == 1 ]] && echo "Disable IAA devices before configuring"
 for ((i = ${first}; i < ${step} * ${num_iaa}; i += ${step})); do
+    [[ -d /sys/bus/dsa/devices/iax${i} ]] || continue
     for ((j = 0; j < ${iaa_wqs}; j += 1)); do
-        cmd="accel-config disable-wq iax${i}/wq${i}.${j} >& /dev/null"
+        if [[ "$(dev_state iax${i}/wq${i}.${j})" == "enabled" ]]; then
+            cmd="accel-config disable-wq iax${i}/wq${i}.${j} >& /dev/null"
+            [[ $verbose == 1 ]] && echo $cmd; eval $cmd
+        fi
+    done
+    if [[ "$(dev_state iax${i})" == "enabled" ]]; then
+        cmd="accel-config disable-device iax${i} >& /dev/null"
         [[ $verbose == 1 ]] && echo $cmd; eval $cmd
-     done
-    cmd="accel-config disable-device iax${i} >& /dev/null"
-    [[ $verbose == 1 ]] && echo $cmd; eval $cmd
+    else
+        [[ $verbose == 1 ]] && echo "iax${i} already disabled, skipping"
+    fi
 done
 
 
@@ -197,3 +265,4 @@ total_devices=$(accel-config list | grep -c '"dev":"iax')
 total_wqs=$(accel-config list | grep -c '"dev":"wq[0-9]*\.[0-9]*"')
 echo "Number of IAA devices per socket: $(( total_devices / sockets ))"
 [ ${total_devices} -gt 0 ] && echo "Work queues per IAA device: $(( total_wqs / total_devices ))" || echo "Work queues per IAA device: 0"
+report_iaa_algorithms
