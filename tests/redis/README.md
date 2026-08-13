@@ -30,26 +30,32 @@ Redis database will be prefilled with the movie data set. memtier-benchmark will
 # Benchmarking Instructions
 
 The benchmark supports two compressed swap modes: **zswap** (kernel frontswap backend) and **zram** (block device swap).
-The appropriate system configuration script (`config_sys_zswap.sh` or `config_sys_zram.sh`) is called automatically based on the selected mode.
+The appropriate system configuration script (`config_sys_zswap.sh` or `config_sys_zram.sh`) is called automatically based on the selected mode, and the report is generated automatically at the end — there is no separate reporting step.
 
 ```
-Usage: ./benchmark.sh [swap_mode] [no_of_servers] [compressor] [db_file]
+Usage: ./benchmark.sh [options]
 
-Arguments:
-  swap_mode      : zswap or zram (also accepts -zswap / -zram). Default: zswap
-  no_of_servers  : Number of Redis server instances. Default: 1
-  compressor     : Compression algorithm. Default: deflate-iaa_r1_p3
-                   Supports: lzo, lz4, zstd, deflate-iaa, deflate-iaa-dynamic
-                   Use "all" to run all supported compressors.
-                   Append _r<N>_p<N> to set reclaim-batchsize and page-cluster
-                   (e.g., deflate-iaa_r64_p5)
-  db_file        : Dataset CSV file. Default: import_movies_10000r_10c.csv
+Named options:
+  --servers, -n <num>                 Number of Redis server instances (default: 1)
+  --compressor, -c <name>             Compressor name or 'all' (default: deflate-iaa_r1_p3)
+                                      Supports: lzo, lz4, zstd, deflate-iaa, deflate-iaa-dynamic
+                                      Append _r<N>_p<N> to set reclaim-batchsize and
+                                      page-cluster (e.g. deflate-iaa_r64_p5)
+  --db-file, -d <path>                Input DB file, .csv or .redis (default: import_movies_10000r_10c.csv)
+  --server-cpus <num>                 Cores per redis server instance (default: 1)
+  --client-cpus <num>                 Cores per memtier client instance (default: 1)
+  --client-socket-policy <auto|same>  Client socket policy (default: auto)
+  --core-policy <siblings-first|spread-nodes>
+                                      Core selection policy (default: spread-nodes)
+  --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
+  --logdir, -l <path>                 Output log directory (default: ./logdir)
+  --help, -h                          Show this help
 
 Examples:
-  ./benchmark.sh -zswap 16 all                  # zswap, 16 servers, all compressors
-  ./benchmark.sh -zram 16 all                  # zram, 16 servers, all compressors
-  ./benchmark.sh -zram 1 deflate-iaa_r64_p5     # zram, 1 server, specific config
-  ./benchmark.sh                               # defaults: zswap, 1 server, deflate-iaa_r1_p3
+  ./benchmark.sh -m zswap -n 16 -c all               # zswap, 16 servers, all compressors
+  ./benchmark.sh -m zram -n 16 -c all                # zram, 16 servers, all compressors
+  ./benchmark.sh -m zram -n 1 -c deflate-iaa_r64_p5  # zram, 1 server, specific config
+  ./benchmark.sh                                     # defaults: zswap, 1 server, deflate-iaa_r1_p3
 ```
 
 Ensure the Python virtual environment is activated before running:
@@ -105,44 +111,46 @@ In **zswap** mode, `Peak(GiB)` equals `CgroupPeak(GiB)` because the zswap compre
 
 # Instance Sweep
 
-The instance sweep measures how Redis performance scales as the number of server instances increases under a fixed memory limit. This is useful for finding the maximum number of instances that can run within a given memory budget before performance degrades beyond an acceptable threshold.
+The instance sweep measures how Redis performance scales as the number of server instances increases under a fixed memory budget. It is useful for finding the maximum number of instances that fit within a given memory budget before performance degrades beyond an acceptable KPI threshold.
 
-## Scripts
-
-* **`instance_sweep_script.sh`** — Runs the instance sweep benchmark. Supports both zram and zswap modes.
-* **`instance_sweep_reporter.py`** — Generates text reports (stdout) and interactive Bokeh HTML reports from sweep results.
+`instance_sweep_script.sh` runs the whole flow end to end: it generates the dataset with `repeat_redis_file.py` if it is missing, configures the swap subsystem (`config_sys_zram.sh` / `config_sys_zswap.sh`), sweeps the instance counts, and produces both the per-config `.report` tables and the combined HTML report by calling `instance_sweep_reporter.py` internally. There is no need to run the reporter separately.
 
 ## Usage
 
 ```
 Usage: ./instance_sweep_script.sh [options]
 
-Options:
-  --compressor, -c <name>             Compressor name or 'all' (default: deflate-iaa_r1_p3)
-  --db-file, -d <path>                Input DB file (default: import_movies_10000r_10c.csv)
-  --server-cpus <num>                 Cores per redis server instance (default: 2)
-  --client-cpus <num>                 Cores per memtier client instance (default: 2)
+Named options:
+  --compressor, -c <name>             Compressor name or 'all' (default: all)
+  --reps, -r <num>                    Dataset repetitions for generation (default: 4000)
+  --combined-lines <num>              Lines combined per entry for generation (default: 3)
+  --db-file, -d <path>                Input DB file, .csv or .redis. Overrides the
+                                      auto-generated dataset from --reps/--combined-lines
+  --server-cpus <num>                 Cores per redis server instance (default: 1)
+  --client-cpus <num>                 Cores per memtier client instance (default: 1)
   --client-socket-policy <auto|same>  Client socket policy (default: auto)
   --swap-mode, -m <zswap|zram>        Swap mode (default: zram)
-  --init-limit <GB>                   Total physical memory cap in GB (default: 64)
+  --init-limit <GB>                   Total physical memory budget in GB (default: 64)
                                       Baseline: cgroup memory.max = init-limit
-                                      Zram: cgroup memory.max = init-limit - zram-mem-limit
-  --memlimit <GB>                     Override cgroup memory limit in GB for zram configs
-  --baseline-memlimit <GB>            Override cgroup memory limit in GB for baseline config
-  --instance-min <num>                Min number of instances to sweep (default: 45)
-  --instance-max <num>                Max number of instances to sweep (default: 70)
-  --instance-step <num>               Step size for instance sweep (default: 1)
+                                      Zram: cgroup memory.max = init-limit - zram-limit
+  --instance-min <num>                Min number of instances to sweep (default: 40)
+  --instance-max <num>                Max number of instances to sweep (default: 65)
+  --instance-step <num>               Step size for instance sweep (default: 5)
   --accept-kpi <num>                  Acceptable KPI threshold % (default: 95)
-  --frequency, -f <MHz>               Core frequency in MHz (default: config_sys default)
-  --zram-limit <GB>                   Zram memory limit in GB (default: none)
-  --zram-disksize <GB>                Zram disk size in GB (default: 25% of total memory)
+  --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 1)
+  --phase-timeout <sec>               Max seconds per phase before kill (default: 1800)
+  --frequency, -f <MHz>               Core frequency in MHz (default: 3500)
+  --zram-limit <GB>                   Zram physical memory limit in GB (subtracted from
+                                      --init-limit to set the cgroup memory.max)
+  --zram-disksize <GB>                Zram virtual disk size in GB (swap space advertised)
   --logdir, -l <path>                 Output log directory (default: ./logdir_instance_sweep)
+  --help, -h                          Show this help
 
 Examples:
   # Single compressor, zram mode
   ./instance_sweep_script.sh -m zram -c deflate-iaa_r64_p5 --instance-min 45 --instance-max 70
 
-  # All compressor configs (loops through baseline + 5 configs from YAML-style list)
+  # All compressor configs (loops through baseline + additional configs)
   ./instance_sweep_script.sh -m zram -c all -f 3500 --init-limit 64 --instance-min 45 --instance-max 70
 
   # Single config with explicit zram limit and disksize
@@ -168,42 +176,26 @@ The compressor string encodes all per-config parameters:
 | `_s64` | zram disk size = 64 GB | `deflate-iaa-dynamic_r32_p3_l12_s64` |
 | `_l0_s0` | no limit, default disksize | `deflate-iaa_r64_p5_l0_s0` (baseline) |
 
-When `--compressor all` is specified, the following configurations are tested in order:
+When `--compressor all` is specified, the following configurations are tested in order (additional configs are available, commented out, in the script):
 
 | # | Config | `config_sys_zram.sh` equivalent |
 |---|--------|--------------------------------|
 | 1 (baseline) | `deflate-iaa_r64_p5_l0_s0` | `-c deflate-iaa -r 64 -p 5` |
-| 2 | `deflate-iaa-dynamic_r32_p3_l12_s64` | `-c deflate-iaa-dynamic -r 32 -p 3 -l 12 -s 64` |
-| 3 | `deflate-iaa-dynamic_r1_p3_l12_s64` | `-c deflate-iaa-dynamic -r 1 -p 3 -l 12 -s 64` |
-| 4 | `deflate-iaa-dynamic_r64_p5_l12_s64` | `-c deflate-iaa-dynamic -r 64 -p 5 -l 12 -s 64` |
-| 5 | `zstd_r1_p3_l12_s64` | `-c zstd -r 1 -p 3 -l 12 -s 64` |
-| 6 | `lz4_r1_p3_l12_s64` | `-c lz4 -r 1 -p 3 -l 12 -s 64` |
+| 2 | `deflate-iaa-dynamic_r64_p5_l12_s64` | `-c deflate-iaa-dynamic -r 64 -p 5 -l 12 -s 64` |
+| 3 | `lz4_r1_p3_l12_s64` | `-c lz4 -r 1 -p 3 -l 12 -s 64` |
 
-The first config is treated as the **baseline** — it runs with unlimited memory to establish the peak memory footprint. All subsequent configs compute their memory limit as `--memlimit-pct`% of that baseline peak.
+The baseline config (`_l0_s0`) runs with `memory.max = init-limit`; the zram configs reserve `zram-limit` GB and run with `memory.max = init-limit − zram-limit`.
 
 ## Methodology
 
-1. The script loops over the compressor configuration list (single config or all configs when `-c all`).
+1. The script loops over the compressor configuration list (a single config, or all configs when `-c all`).
 2. For each config, `config_sys_zram.sh` (or `config_sys_zswap.sh`) is called with the config-specific parameters (`-c`, `-r`, `-p`, `-l`, `-s`, `-f`).
-3. The **first config** in the list is the baseline: it runs at `--instance-min` instances with unlimited memory to establish `baseline_peak`.
-4. For all configs (including the first), a memory limit is computed as `--memlimit-pct`% of `baseline_peak`.
-5. The script sweeps from `--instance-min` to `--instance-max` instances (stepping by `--instance-step`), running all instances under the computed memory limit.
-6. Per-instance throughput, aggregate throughput, p99 latency, CPU usage, and swap statistics are collected.
-7. Results are piped through `instance_sweep_reporter.py` to produce a `.report` table per config and a combined HTML report with KPI crossing-point analysis.
-
-## Reporter
-
-The reporter operates in two modes:
-
-**Report mode** (text table via stdin):
-```
-cat logdir_instance_sweep/deflate-iaa_r1_p3/instances-*.log | python instance_sweep_reporter.py
-```
-
-**Plot mode** (interactive HTML from .report files):
-```
-python instance_sweep_reporter.py --plot logdir_instance_sweep/deflate-iaa_r1_p3/deflate-iaa_r1_p3.report --output-dir ./logdir_instance_sweep --accept-kpi 95
-```
+3. The cgroup memory limit is derived from `--init-limit`:
+   * baseline configs (`_l0_s0`, no zram) use `memory.max = init-limit`;
+   * zram configs use `memory.max = init-limit − zram-limit`, reserving the remainder for the zram device.
+4. The script sweeps from `--instance-min` to `--instance-max` instances (stepping by `--instance-step`), running all instances under that memory limit.
+5. Per-instance throughput, aggregate throughput, p99 latency, CPU usage, and swap statistics are collected. The first sweep point (`--instance-min`) is used as the baseline for KPI comparison.
+6. Results are automatically piped through `instance_sweep_reporter.py` to produce a `.report` table per config and a combined HTML report with KPI crossing-point analysis.
 
 ## Report Metrics
 

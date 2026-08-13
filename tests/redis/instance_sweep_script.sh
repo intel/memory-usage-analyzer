@@ -51,11 +51,11 @@ Named options:
   --client-cpus <num>                 Cores per memtier client instance
   --client-socket-policy <auto|same>  Client socket policy
   --swap-mode, -m <zswap|zram>        Swap mode (default: zram)
-  --instance-min <num>                Min number of instances (default: 45)
-  --instance-max <num>                Max number of instances (default: 60)
-  --instance-step <num>               Step size for instance sweep (default: 15)
+  --instance-min <num>                Min number of instances (default: 40)
+  --instance-max <num>                Max number of instances (default: 65)
+  --instance-step <num>               Step size for instance sweep (default: 5)
   --accept-kpi <num>                  Acceptable KPI threshold % (default: 95)
-  --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 6)
+  --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 1)
                                       Checked every 30s; aborts if total new
                                       OOM kills since phase start >= threshold
   --phase-timeout <sec>               Max seconds per phase before kill (default: 1800)
