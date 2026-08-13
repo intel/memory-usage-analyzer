@@ -15,7 +15,9 @@ REDIS_PORT_BASE=9001
 
 # Defaults
 compressor="all"
-db_file="import_movies_4000r_3c.csv"
+reps=4000
+combined_lines=3
+db_file=""
 redis_server_cpus_per_instance=1
 memtier_cpus_per_instance=1
 client_socket_policy="auto"
@@ -41,7 +43,10 @@ Usage: instance_sweep_script.sh [options]
 
 Named options:
   --compressor, -c <name>             Compressor name or 'all'
-  --db-file, -d <path>                Input DB file (.csv or .redis)
+  --reps, -r <num>                    Dataset repetitions for generation (default: 4000)
+  --combined-lines <num>              Lines combined per entry for generation (default: 3)
+  --db-file, -d <path>                Input DB file (.csv or .redis). Overrides
+                                      the auto-generated dataset from --reps/--combined-lines
   --server-cpus <num>                 Cores per redis server instance
   --client-cpus <num>                 Cores per memtier client instance
   --client-socket-policy <auto|same>  Client socket policy
@@ -79,6 +84,8 @@ EOF_HELP
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --compressor|-c)         compressor="$2";                    shift 2 ;;
+        --reps|-r)               reps="$2";                          shift 2 ;;
+        --combined-lines)        combined_lines="$2";                shift 2 ;;
         --db-file|-d)            db_file="$2";                       shift 2 ;;
         --server-cpus)           redis_server_cpus_per_instance="$2"; shift 2 ;;
         --client-cpus)           memtier_cpus_per_instance="$2";     shift 2 ;;
@@ -104,6 +111,16 @@ if [[ "$swap_mode" != "zswap" && "$swap_mode" != "zram" ]]; then
     echo "ERROR: invalid swap mode '$swap_mode'. Must be 'zswap' or 'zram'."
     print_usage
     exit 1
+fi
+
+# Derive the dataset filename from reps/combined_lines and generate it if missing.
+# An explicit --db-file overrides both the name and the generation step.
+if [[ -z "$db_file" ]]; then
+    db_file="import_movies_${reps}r_${combined_lines}c.csv"
+    if [[ ! -f "$db_file" ]]; then
+        echo "=== Generating dataset ${db_file} (reps=${reps}, combined_lines=${combined_lines}) ==="
+        python repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
+    fi
 fi
 
 # Clear all previous results
@@ -485,7 +502,7 @@ if [[ "$compressor" == "all" ]]; then
             #"deflate-iaa_r64_p5_l12_s64"
             #"deflate-iaa-dynamic_r32_p3_l12_s64"
             "deflate-iaa-dynamic_r64_p5_l12_s64"
-            "zstd_r1_p3_l12_s64"
+            #"zstd_r1_p3_l12_s64"
             "lz4_r1_p3_l12_s64"
         )
     else
