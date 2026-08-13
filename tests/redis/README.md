@@ -2,22 +2,10 @@
 
 This is a charaterization framework to benchamark zswap with IAA using Redis and show case its value in reducing the memory footprint of Redis with less impact on the workload performance.
 
-# Prerequisites
+# Setting up Environment
 
-* Intel Xeon Gen4 or later with IAA enabled
-* Linux Kernel 6.8 or later where iaa_crypto mode is available 
-* Python version 3.10 or later
-* Charaterization environment.
-  * Python virtual environment to handle dependencies
-  Creatiion of the virtual environment should be done only one. Need to only activate it later.
-  ```
-  python -m venv virtualenv && source virtualenv/bin/activate
-  ```
-  * Clone and install packages, if have not done already
-  ```
-  git clone https://github.com/intel-innersource/applications.benchmarking.memory-usage-analyzer memory-usage-analyzer
-  pip install -e memory-usage-analyzer
-  ```
+Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [README](../../README.md#requirements).
+
 * Install Redis server and memtier-benchmark. 
   ```
   ./setup_redis.sh

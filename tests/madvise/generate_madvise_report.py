@@ -70,7 +70,11 @@ SUMMARY_DIR_RANK = {
     "zram-backend": 1,
     "zswap-base": 2,
     "zswap-mthp-v1": 3,
-    "all_patches": 4,
+    "zswap-mthp-v1-slot-16": 4,
+    "zswap-mthp-v1-slot-32": 5,
+    "zswap-mthp-v1-slot-256": 6,
+    "zswap-mthp-v2": 7,
+    "all_patches": 8,
 }
 
 MODE_DIRS = {

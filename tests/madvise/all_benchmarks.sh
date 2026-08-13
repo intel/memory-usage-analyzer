@@ -15,6 +15,18 @@ elif [ "$kernel" == "7.2.0-rc6-4b5c+" ];then
     kernel_str="zswap-base"
 elif [ "$kernel" == "7.2.0-rc6-55ac+" ];then
     kernel_str="zswap-mthp-v1"
+elif [ "$kernel" == "7.2.0-rc6-55ac_zswap-slots-16+" ];then
+    kernel_str="zswap-mthp-v1-slot-16"
+elif [ "$kernel" == "7.2.0-rc6-55ac_zswap-slots-32+" ];then
+    kernel_str="zswap-mthp-v1-slot-32"
+elif [ "$kernel" == "7.2.0-rc6-55ac_zswap-slots-64+" ];then
+    kernel_str="zswap-mthp-v1-slot-64"
+elif [ "$kernel" == "7.2.0-rc6-55ac_zswap-slots-128+" ];then
+    kernel_str="zswap-mthp-v1-slot-128"
+elif [ "$kernel" == "7.2.0-rc6-55ac_zswap-slots-256+" ];then
+    kernel_str="zswap-mthp-v1-slot-256"
+elif [ "$kernel" == "7.2.0-rc6-37c5+" ];then
+    kernel_str="zswap-mthp-v2"
 else
     echo "Kernel not found"
     exit
