@@ -9,7 +9,9 @@ THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Defaults
 no_of_servers=1
 compressor="deflate-iaa_r1_p3"
-db_file="import_movies_10000r_10c.csv"
+db_file=""
+reps=10000
+combined_lines=10
 redis_server_cpus_per_instance=1
 memtier_cpus_per_instance=1
 client_socket_policy="auto"
@@ -25,7 +27,10 @@ Usage:
 Named options:
   --servers, -n <num>                 Number of redis servers
   --compressor, -c <name>             Compressor name or 'all'
-  --db-file, -d <path>                Input DB file (.csv or .redis)
+  --reps, -r <num>                    Dataset repetitions for generation (default: 10000)
+  --combined-lines <num>              Lines combined per entry for generation (default: 10)
+  --db-file, -d <path>                Input DB file (.csv or .redis). Overrides
+                                      the auto-generated dataset from --reps/--combined-lines
   --server-cpus <num>                 Cores per redis server instance
   --client-cpus <num>                 Cores per memtier client instance
   --client-socket-policy <auto|same>  Client socket policy
@@ -46,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             no_of_servers="$2"; shift 2 ;;
         --compressor|-c)
             compressor="$2"; shift 2 ;;
+        --reps|-r)
+            reps="$2"; shift 2 ;;
+        --combined-lines)
+            combined_lines="$2"; shift 2 ;;
         --db-file|-d)
             db_file="$2"; shift 2 ;;
         --server-cpus)
@@ -101,6 +110,16 @@ if [[ "$core_policy" != "siblings-first" && "$core_policy" != "spread-nodes" ]];
     echo "ERROR: invalid core policy '$core_policy'. Must be 'siblings-first' or 'spread-nodes'."
     print_usage
     exit 1
+fi
+
+# Derive the dataset filename from reps/combined_lines and generate it if missing.
+# An explicit --db-file overrides both the name and the generation step.
+if [[ -z "$db_file" ]]; then
+    db_file="import_movies_${reps}r_${combined_lines}c.csv"
+    if [[ ! -f "$db_file" ]]; then
+        echo "=== Generating dataset ${db_file} (reps=${reps}, combined_lines=${combined_lines}) ==="
+        python repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
+    fi
 fi
 
 # Clear all previous results
@@ -294,11 +313,15 @@ if [ "$compressor" == "all" ];then
        compressor_list=("zstd_r1_p3" "lz4_r1_p3"  "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r64_p5")
        #compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa_r64_p5" "deflate-iaa-dynamic_r1_p3" "deflate-iaa-dynamic_r64_p5")
    else
-       compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
+       compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")
    fi
 else
    compressor_list=( "$compressor")
 fi
+
+# Verify the kernel actually activated the requested compressor so unavailable
+# configs (e.g. deflate-iaa / deflate-iaa-dynamic) are skipped instead of run.
+source "${THIS_DIR}/../scripts/compressor_lib.sh"
 
 #echo "${compressor_list[@]}"
 report_string=""
@@ -326,6 +349,10 @@ for comp in "${compressor_list[@]}"; do
             -c "$comp_algo" \
             -r "$reclaim_batchsize" \
             -p "$page_cluster"
+    fi
+
+    if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
+        continue
     fi
 
    

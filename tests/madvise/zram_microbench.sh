@@ -25,6 +25,8 @@ THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SHARED_SCRIPTS_DIR="${THIS_DIR}/../scripts"
 EFFECTIVE_BATCH_LOGGER="${SHARED_SCRIPTS_DIR}/effective_batch_logger.sh"
 
+source "${SHARED_SCRIPTS_DIR}/compressor_lib.sh"
+
 # ─── Defaults ─────────────────────────────────────────────────────────
 DATASET="silesia.tar"
 CORE_FREQUENCY=3200
@@ -206,16 +208,9 @@ configure_compressor() {
         ${MTHP:+-t "$MTHP"} \
         || handle_error "Failed to configure compressor profile '$profile'"
 
-    # zram silently keeps the previous compressor active if the requested
-    # algorithm isn't registered (e.g. deflate-iaa without the in-tree
-    # iaa_crypto driver). Detect that so the caller can skip the profile
-    # instead of re-benchmarking a stale compressor.
-    local active_comp
-    active_comp=$(sed -n 's/.*\[\(.*\)\].*/\1/p' /sys/block/zram0/comp_algorithm 2>/dev/null)
-    if [[ "$active_comp" != "$comp_algo" ]]; then
-        echo "WARNING: zram compressor '$comp_algo' not available on this kernel (active: '$active_comp')" >&2
-        return 1
-    fi
+    # Skip the profile if the kernel didn't actually activate the requested
+    # compressor (e.g. deflate-iaa without the in-tree iaa_crypto driver).
+    verify_compressor_active zram "$comp_algo" || return 1
 }
 
 # ─── Build compressor list ────────────────────────────────────────────

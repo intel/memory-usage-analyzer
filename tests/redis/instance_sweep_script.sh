@@ -287,6 +287,10 @@ stop_swap_logger() {
     fi
 }
 
+# Verify the kernel actually activated the requested compressor so unavailable
+# configs (e.g. deflate-iaa / deflate-iaa-dynamic) are skipped instead of run.
+source "${THIS_DIR}/../scripts/compressor_lib.sh"
+
 # Kill all redis servers and clean up the cgroup.
 cleanup_scenario() {
     stop_swap_logger
@@ -536,6 +540,10 @@ for comp in "${compressor_list[@]}"; do
             -r "$reclaim_batchsize" \
             -p "$page_cluster" \
             ${core_frequency:+-f "$core_frequency"}
+    fi
+
+    if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
+        continue
     fi
 
     LOGDIR_COMP="${LOGDIR}/${comp}"

@@ -25,6 +25,8 @@ THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SHARED_SCRIPTS_DIR="${THIS_DIR}/../scripts"
 EFFECTIVE_BATCH_LOGGER="${SHARED_SCRIPTS_DIR}/effective_batch_logger.sh"
 
+source "${SHARED_SCRIPTS_DIR}/compressor_lib.sh"
+
 # --- Defaults ---------------------------------------------------------
 DATASET="silesia.tar"
 CORE_FREQUENCY=3200
@@ -218,16 +220,9 @@ configure_compressor() {
         ${MTHP:+-t "$MTHP"} \
         || handle_error "Failed to configure compressor profile '$profile'"
 
-    # The kernel silently rejects unknown/unavailable compressors (e.g.
-    # deflate-iaa-dynamic isn't registered by the in-tree iaa_crypto driver),
-    # leaving the previous compressor active. Detect that so the caller can
-    # skip the profile instead of re-benchmarking a stale compressor.
-    local active_comp
-    active_comp=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null)
-    if [[ "$active_comp" != "$comp_algo" ]]; then
-        echo "WARNING: zswap compressor '$comp_algo' not available on this kernel (active: '$active_comp')" >&2
-        return 1
-    fi
+    # Skip the profile if the kernel didn't actually activate the requested
+    # compressor (e.g. deflate-iaa-dynamic without the in-tree iaa_crypto driver).
+    verify_compressor_active zswap "$comp_algo" || return 1
 }
 
 # --- Build compressor list -------------------------------------------
