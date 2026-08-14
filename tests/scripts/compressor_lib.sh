@@ -31,3 +31,23 @@ verify_compressor_active() {
     fi
     return 0
 }
+
+# Print an OS/kernel summary block describing whether deflate-iaa was usable on
+# this kernel, mirroring the trailer emitted by tests/dd/run_dd.sh.
+#   $1: space-separated deflate-iaa* algorithms that actually activated (may be empty)
+#   $2: "true" if any deflate-iaa* config was attempted during the run
+# Usage: print_iaa_support_summary "$ran_iaa_algos" "$iaa_attempted"
+print_iaa_support_summary() {
+    local ran_iaa="$1" attempted="${2:-false}" os_name
+    os_name=$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME")
+    [[ -z "$os_name" ]] && os_name=$(uname -o 2>/dev/null || echo "unknown")
+    echo "=========================================="
+    echo "OS:     ${os_name}"
+    echo "Kernel: $(uname -r) ($(uname -m))"
+    if [[ -n "$ran_iaa" ]]; then
+        echo "This OS/kernel SUPPORTS deflate-iaa (available: $(echo "$ran_iaa" | xargs))."
+    elif [[ "$attempted" == "true" ]]; then
+        echo "This OS/kernel does NOT support deflate-iaa (in-tree iaa_crypto driver not registered for zram)."
+    fi
+    echo "=========================================="
+}

@@ -336,6 +336,9 @@ source "${THIS_DIR}/../scripts/compressor_lib.sh"
 
 #echo "${compressor_list[@]}"
 report_string=""
+# Track deflate-iaa availability for the end-of-run summary.
+iaa_attempted=false
+ran_iaa_algos=""
 for comp in "${compressor_list[@]}"; do
     # Defaults
     comp_algo="$comp"
@@ -349,6 +352,7 @@ for comp in "${compressor_list[@]}"; do
         page_cluster="${BASH_REMATCH[3]}"
     fi
 
+    [[ "$comp_algo" == deflate-iaa* ]] && iaa_attempted=true
 
     if [[ "$swap_mode" == "zram" ]]; then
         "${THIS_DIR}/../scripts/config_sys_zram.sh" \
@@ -365,6 +369,7 @@ for comp in "${compressor_list[@]}"; do
     if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
         continue
     fi
+    [[ "$comp_algo" == deflate-iaa* ]] && ran_iaa_algos+="$comp_algo "
 
    
     LOGDIR_COMP=${LOGDIR}/${comp} 
@@ -413,3 +418,6 @@ done
 
 report_string="${report_string% }"
 python report_plot.py ${report_string} --output-dir ${LOGDIR}
+
+# Summarize deflate-iaa availability for this OS/kernel (same trailer as run_dd.sh).
+print_iaa_support_summary "$ran_iaa_algos" "$iaa_attempted"

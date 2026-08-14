@@ -518,6 +518,9 @@ fi
 
 #echo "${compressor_list[@]}"
 report_string=""
+# Track deflate-iaa availability for the end-of-run summary.
+iaa_attempted=false
+ran_iaa_algos=""
 
 for comp in "${compressor_list[@]}"; do
     parse_comp_config "$comp"
@@ -527,6 +530,8 @@ for comp in "${compressor_list[@]}"; do
     echo "=== Configuration: $comp"
     echo "===   algo=$comp_algo  r=$reclaim_batchsize  p=$page_cluster  l=${cfg_zram_mem_limit:-auto}  s=${cfg_zram_disk_size:-auto}"
     echo "============================================================"
+
+    [[ "$comp_algo" == deflate-iaa* ]] && iaa_attempted=true
 
     if [[ "$swap_mode" == "zram" ]]; then
         swap_args=(-c "$comp_algo" -r "$reclaim_batchsize" -p "$page_cluster")
@@ -545,6 +550,7 @@ for comp in "${compressor_list[@]}"; do
     if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
         continue
     fi
+    [[ "$comp_algo" == deflate-iaa* ]] && ran_iaa_algos+="$comp_algo "
 
     LOGDIR_COMP="${LOGDIR}/${comp}"
     mkdir -p "${LOGDIR_COMP}"
@@ -585,3 +591,6 @@ if [[ -n "$report_string" ]]; then
 fi
 
 echo "=== Instance sweep complete. Results in ${LOGDIR} ==="
+
+# Summarize deflate-iaa availability for this OS/kernel (same trailer as run_dd.sh).
+print_iaa_support_summary "$ran_iaa_algos" "$iaa_attempted"
