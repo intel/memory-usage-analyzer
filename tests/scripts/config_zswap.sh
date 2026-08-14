@@ -4,19 +4,35 @@
 #Description: Configure zswap
 
 COMPRESSOR=${1:-lz4}
-setup_zswap(){
-    compressor=$1
-    echo 0  > /sys/module/zswap/parameters/enabled
-    echo 90 > /sys/module/zswap/parameters/accept_threshold_percent
-    echo 35 > /sys/module/zswap/parameters/max_pool_percent
-    echo ${COMPRESSOR} > /sys/module/zswap/parameters/compressor
-    echo 1  > /sys/module/zswap/parameters/enabled
-}
 status_zswap(){
     grep -H . /sys/module/zswap/parameters/accept_threshold_percent
     grep -H . /sys/module/zswap/parameters/max_pool_percent
     grep -H . /sys/module/zswap/parameters/compressor
+    grep -H . /sys/module/zswap/parameters/zpool
     grep -H . /sys/module/zswap/parameters/enabled
+}
+
+update_sysfs() {
+    local file="$1"
+    local value="$2"
+
+    if [[ -e "$file" ]]; then
+    if ! echo "$value" > "$file" 2>/dev/null; then
+      echo "WARNING: unable to write '$value' to $file (permission denied or read-only)" >&2
+    fi
+  else
+    echo "INFO: optional knob not available: $file"
+    fi
+}
+
+setup_zswap(){
+    compressor=$1
+    update_sysfs /sys/module/zswap/parameters/enabled 0
+    update_sysfs /sys/module/zswap/parameters/accept_threshold_percent 90
+    update_sysfs /sys/module/zswap/parameters/max_pool_percent 35
+    update_sysfs /sys/module/zswap/parameters/compressor $compressor
+    update_sysfs /sys/module/zswap/parameters/zpool zsmalloc
+    update_sysfs /sys/module/zswap/parameters/enabled 1
 }
 
 while getopts "c:h:" opt; do

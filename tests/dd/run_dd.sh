@@ -7,7 +7,7 @@
 # Default settings
 SWEEP="no"
 BATCH_SIZES=(4096)  # Default: only 4K
-CORE_FREQUENCY_MHZ=3000
+CORE_FREQUENCY_MHZ=3200
 DD_PATH="dd"
 if dd --version | grep -q "(coreutils) 9.5"; then
     echo "dd is version 9.5"
@@ -44,16 +44,55 @@ while getopts "sf:h" opt; do
   esac
 done
 
-# Configure IAA, if not already
-../scripts/disable_swap_zram.sh; ../scripts/enable_iaa.sh 
-# Set up frequency and LOM
-../scripts/set_core_frequency.sh -f ${CORE_FREQUENCY_MHZ}
-../scripts/set_unset_lom.sh set
+# Configure the system for zram (core frequency + IAA + zram device).
+../scripts/config_sys_zram.sh -f ${CORE_FREQUENCY_MHZ}
 
-comp_list="lz4 zstd deflate-iaa deflate-iaa-dynamic"
+# Candidate compressors. deflate-iaa / deflate-iaa-dynamic need the iaa_crypto
+# driver bound into zram's compress path (both Ubuntu and CentOS in-tree
+# drivers register them once IAA is configured).
+candidate_comp_list="lz4 lzo-rle zstd deflate-iaa deflate-iaa-dynamic"
 
-# Setup
-yum install fio -y
+# Bring up a clean, *uninitialized* zram device for probing. comp_algorithm can
+# only be changed while the device has no disksize set, so tear down whatever
+# config_sys_zram.sh left behind first (the per-compressor loop recreates it).
+swapoff /dev/zram0 2>/dev/null || true
+umount /mnt/zram_disk 2>/dev/null || true
+echo 0 > /sys/class/zram-control/hot_remove 2>/dev/null || true
+modprobe zram 2>/dev/null || true
+[[ -e /sys/block/zram0 ]] || cat /sys/class/zram-control/hot_add >/dev/null 2>&1 || true
+
+# Detect selectable compressors by actually trying to set each one. The
+# comp_algorithm sysfs "list" only advertises the built-in backends plus the
+# currently-active algorithm, so crypto-backed algorithms (deflate-iaa,
+# deflate-iaa-dynamic) are usable even though they are absent from that list.
+# Probing by write is the reliable, distro-agnostic test.
+comp_list=""
+for comp in $candidate_comp_list; do
+    if echo "$comp" > /sys/block/zram0/comp_algorithm 2>/dev/null &&
+       [[ "$(sed -n 's/.*\[\(.*\)\].*/\1/p' /sys/block/zram0/comp_algorithm)" == "$comp" ]]; then
+        comp_list+="$comp "
+    else
+        echo "WARNING: compressor '$comp' not selectable for zram on this kernel; skipping" >&2
+    fi
+done
+comp_list=$(echo "$comp_list" | xargs)
+if [[ -z "$comp_list" ]]; then
+    echo "ERROR: no supported zram compressors detected" >&2
+    exit 1
+fi
+echo "Testing compressors: $comp_list"
+
+# Install required tools on both Ubuntu (apt-get) and CentOS (dnf/yum).
+required_pkgs="fio bc numactl"
+if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -y && apt-get install -y $required_pkgs
+elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y $required_pkgs
+elif command -v yum >/dev/null 2>&1; then
+    yum install -y $required_pkgs
+else
+    echo "WARNING: no supported package manager (apt-get/dnf/yum); please install: $required_pkgs" >&2
+fi
 content_file=silesia.tar
 if ! [ -f ${content_file} ];then
     wget --no-check-certificate http://wanos.co/assets/silesia.tar 
@@ -72,8 +111,12 @@ else
     echo "Testing block size: 4K only"
 fi
 
-# Clear stats for debug
-echo 1 > /sys/kernel/debug/iaa_crypto/stats_reset
+# Clear IAA stats when the in-tree iaa_crypto driver exposes them (skipped on
+# kernels without IAA, e.g. stock Ubuntu/CentOS without the driver loaded).
+IAA_STATS_DIR="/sys/kernel/debug/iaa_crypto"
+if [[ -w "${IAA_STATS_DIR}/stats_reset" ]]; then
+    echo 1 > "${IAA_STATS_DIR}/stats_reset"
+fi
 
 # create tmpfs for input to avoid overhead of filesystem
 mkdir -p /mnt/tmpfs
@@ -92,7 +135,11 @@ for bs in "${BATCH_SIZES[@]}"; do
     for comp in $comp_list; do
         echo "Testing compressor: $comp with block size $((bs/1024))K"
         echo "Running Enabling ZRAM..."
-        ./enable_zram.sh -c $comp
+        if ! ./enable_zram.sh -c $comp; then
+            echo "WARNING: skipping '$comp' at block size $((bs/1024))K — compressor unavailable" >&2
+            rm -f ${comp}_${bs}_wr.log ${comp}_${bs}_rd.log ${comp}_${bs}_zram_wr.log
+            continue
+        fi
         numactl --membind=0 taskset -c 1 ${DD_PATH} if=/mnt/tmpfs/silesia.tar of=/mnt/zram_disk/silesia_w.tar oflag=direct  bs=${bs} count=${block_count}  status=progress 2>&1 | tee ${comp}_${bs}_wr.log
         # Collect zram stats after write
         echo "ZRAM stats after write:" | tee -a ${comp}_${bs}_zram_wr.log
@@ -108,11 +155,23 @@ for bs in "${BATCH_SIZES[@]}"; do
     done
 done
 
-umount -l /mnt/tmpfs && rmdir /mnt/tmpfs
+# Release the tmpfs input mount. Try a normal unmount first and only fall back
+# to a lazy one; skip rmdir while it is still detaching to avoid a busy error.
+sync
+if umount /mnt/tmpfs 2>/dev/null; then
+    rmdir /mnt/tmpfs 2>/dev/null || true
+else
+    umount -l /mnt/tmpfs 2>/dev/null || true
+fi
 
-cat /sys/kernel/debug/iaa_crypto/wq_stats > wq_stats.txt
+# Collect IAA work-queue stats only when the driver exposes them.
+if [[ -r "${IAA_STATS_DIR}/wq_stats" ]]; then
+    cat "${IAA_STATS_DIR}/wq_stats" > wq_stats.txt
+fi
 
-echo ""
+SUMMARY_FILE="dd_zram_summary.txt"
+
+generate_summary() {
 echo "=========================================="
 echo "FINAL RESULTS"
 echo "=========================================="
@@ -121,6 +180,10 @@ printf "%-25s %-12s %-12s %-12s %-15s\n" "-------------------------" "----------
 
 for bs in "${BATCH_SIZES[@]}"; do
     for comp in $comp_list;do
+        if [[ ! -f "${comp}_${bs}_wr.log" ]] || [[ ! -f "${comp}_${bs}_rd.log" ]]; then
+            printf "%-25s %-12s %-12s %-12s %-15s\n" "$comp" "$((bs/1024))K" "SKIPPED" "SKIPPED" "N/A"
+            continue
+        fi
         wr_bw=$(tail -n 1 ${comp}_${bs}_wr.log | awk -F, '{print $4}'| awk '{print $1}')
         wr_bw_unit=$(tail -n 1 ${comp}_${bs}_wr.log | awk -F, '{print $4}'| awk '{print $2}')
 	[[ $wr_bw_unit == "GB/s" ]] && wr_bw=$(echo "scale=2; $wr_bw * 1024" | bc)
@@ -150,4 +213,22 @@ for bs in "${BATCH_SIZES[@]}"; do
         printf "%-25s %-12s %-12s %-12s %-15s\n" "$comp" "$block_size_display" "$wr_bw" "$rd_bw" "$compression_ratio"
     done
 done
-python report_wq_stats.py wq_stats.txt  > /dev/null
+
+echo "=========================================="
+echo "This run only benchmarked zram."
+os_name=$(. /etc/os-release 2>/dev/null && echo "$PRETTY_NAME")
+[[ -z "$os_name" ]] && os_name=$(uname -o 2>/dev/null || echo "unknown")
+echo "OS:     ${os_name}"
+echo "Kernel: $(uname -r) ($(uname -m))"
+if [[ " $comp_list " == *" deflate-iaa "* || " $comp_list " == *" deflate-iaa-dynamic "* ]]; then
+    echo "This OS/kernel SUPPORTS deflate-iaa (available: $(echo "$comp_list" | grep -o 'deflate-iaa[a-z-]*' | tr '\n' ' '))."
+else
+    echo "This OS/kernel does NOT support deflate-iaa (in-tree iaa_crypto driver not registered for zram)."
+fi
+echo "=========================================="
+}
+
+# Print the summary and persist it to a file.
+generate_summary | tee "${SUMMARY_FILE}"
+echo ""
+echo "Summary written to $(pwd)/${SUMMARY_FILE}"

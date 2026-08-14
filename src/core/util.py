@@ -8,6 +8,7 @@ import os.path
 import platform
 import sys
 import re
+import numpy as np
 import pandas
 
 
@@ -274,3 +275,66 @@ def read_stats_df(filename):
     # .copy() consolidates all internal memory blocks into one contiguous layout,
     # preventing PerformanceWarning in callers that add further columns.
     return pandas.concat([df, new_cols], axis=1).copy()
+
+
+def find_crossing_point(x_values, y_values, threshold, return_status=False):
+    """Find where the performance curve crosses the acceptable KPI threshold.
+
+    Uses linear interpolation on the (x, y) data to locate the x coordinate
+    where y crosses the *threshold* value.  This is equivalent to the
+    ``find_crossing_point`` function in the iax-memcomp reference project.
+
+    Parameters
+    ----------
+    x_values : list[float]
+        X-axis values (e.g. memory savings %).
+    y_values : list[float]
+        Y-axis values (e.g. throughput delta % or regression %).
+    threshold : float
+        The KPI threshold line value on the y-axis.
+    return_status : bool, optional
+        If True, return ``(crossing_point, status_string)`` instead of just
+        the crossing point.
+
+    Returns
+    -------
+    float or tuple[float, str]
+        The interpolated x value where y crosses the threshold.  If
+        *return_status* is True, also returns a status string describing
+        the result: ``'Single x-point'``, ``'Multiple x-points'``, or
+        ``'No x-point'``.
+    """
+    x = np.array(x_values, dtype=float)
+    y = np.array(y_values, dtype=float)
+
+    # Drop NaN pairs
+    mask = np.isfinite(x) & np.isfinite(y)
+    x, y = x[mask], y[mask]
+
+    if len(x) < 2:
+        result = float(x[0]) if len(x) == 1 else 0.0
+        return (result, "Insufficient data") if return_status else result
+
+    # Sort by x for proper interpolation
+    order = np.argsort(x)
+    x, y = x[order], y[order]
+
+    # Interpolate to 1000 evenly-spaced points
+    x_interp = np.linspace(x.min(), x.max(), 1000)
+    y_interp = np.interp(x_interp, x, y)
+
+    # Find sign changes relative to threshold
+    kpi_line = np.full_like(y_interp, threshold)
+    sign_changes = np.argwhere(np.diff(np.sign(y_interp - kpi_line))).flatten()
+
+    if len(sign_changes) > 1:
+        crossing = round(float(np.min(x_interp[sign_changes])), 2)
+        status = "Multiple x-points"
+    elif len(sign_changes) == 1:
+        crossing = round(float(x_interp[sign_changes[0]]), 2)
+        status = "Single x-point"
+    else:
+        crossing = round(float(x.max()), 2)
+        status = "No x-point"
+
+    return (crossing, status) if return_status else crossing

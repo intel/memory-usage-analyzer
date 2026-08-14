@@ -6,13 +6,22 @@
 VM_RECLAIM_BATCHSIZE=1
 VM_PAGE_CLUSTER=3
 COMPRESSION_ALGORITHM=lz4
+MTHP="4kB"
 
 show_status() {
-    grep . -H  /proc/sys/vm/reclaim-batchsize
-    grep . -H  /proc/sys/vm/page-cluster
-    grep . -H  /proc/sys/vm/swappiness
-    grep . -H  /proc/sys/vm/overcommit_memory
-    grep . -H  /sys/kernel/mm/swap/singlemapped_ra_enabled
+  local f
+  for f in \
+    /proc/sys/vm/reclaim-batchsize \
+    /proc/sys/vm/page-cluster \
+    /proc/sys/vm/swappiness \
+    /proc/sys/vm/overcommit_memory \
+    /sys/kernel/mm/swap/singlemapped_ra_enabled; do
+    if [[ -e "$f" ]]; then
+      grep . -H "$f" || true
+    else
+      echo "INFO: optional knob not available: $f"
+    fi
+  done
 }
 
 update_sysfs() {
@@ -20,12 +29,16 @@ update_sysfs() {
     local value="$2"
 
     if [[ -e "$file" ]]; then
-        echo "$value" > "$file"
+    if ! echo "$value" > "$file" 2>/dev/null; then
+      echo "WARNING: unable to write '$value' to $file (permission denied or read-only)" >&2
+    fi
+  else
+    echo "INFO: optional knob not available: $file"
     fi
 }
 
 # Process inputs
-while getopts "c:r:p:h:" opt; do
+while getopts "c:r:p:m:h:" opt; do
   case $opt in
     r)
       VM_RECLAIM_BATCHSIZE=$OPTARG
@@ -36,15 +49,21 @@ while getopts "c:r:p:h:" opt; do
     c)
       COMPRESSION_ALGORITHM=$OPTARG
       ;;
+    m)
+      MTHP=$OPTARG
+      ;;
     h)
-      echo "Usage: $0 [-c <comp_algorithm>] [-r <vm_reclaim_batchsize>] [-p <vm_page_cluster>]"
+      echo "Usage: $0 [-c <comp_algorithm>] [-r <vm_reclaim_batchsize>] [-p <vm_page_cluster>] [-m <mthp_sizes>]"
       echo "       -c - compression algorithm (default: lz4)"
       echo "       -p - vm_page_cluster (default: 3)"
       echo "       -r - vm_reclaim_batchsize (default: 64)"
+      echo "       -m - mTHP sizes, comma-separated (default: 4kB)"
+      echo "            available: 16kB,32kB,64kB,128kB,256kB,512kB,1024kB,2048kB"
       echo "       -h - help"
       echo ""
       echo "Examples:"
       echo "  $0 -c deflate-iaa-dynamic -p 3 -r 64"
+      echo "  $0 -m 64kB,128kB"
       echo ""
       echo "Available compression algorithms:"
       echo "  lzo, lz4, zstd, deflate-iaa"
@@ -62,7 +81,7 @@ update_sysfs /proc/sys/vm/page-cluster      ${VM_PAGE_CLUSTER}
 update_sysfs /proc/sys/vm/swappiness 100
 update_sysfs /proc/sys/vm/overcommit_memory 1
 
-echo false > /sys/kernel/mm/swap/singlemapped_ra_enabled
+update_sysfs /sys/kernel/mm/swap/singlemapped_ra_enabled false
 if [[ "${COMPRESSION_ALGORITHM}" == *"deflate"* ]]; then
     update_sysfs /sys/kernel/mm/swap/singlemapped_ra_enabled true
 fi
@@ -89,3 +108,4 @@ for mthp in "${mthp_list[@]}"; do
 done
 
 show_status
+exit 0

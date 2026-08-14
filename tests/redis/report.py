@@ -56,12 +56,15 @@ def parse_input(lines):
 
 def enrich_rows(data):
     for r in data:
+        r["swap_mode"] = r.get("swap_mode", "zswap").strip()
         r["memory_max"] = r.get("memory_max", "").strip()
         r["memory_peak"] = to_int(r.get("memory_peak", 0))
         r["memory_swap_peak"] = to_int(r.get("memory_swap_peak", 0))
         r["throughput_ops"] = to_float(r.get("throughput", 0))
         r["throughput_kops"] = r["throughput_ops"] / 1000.0
         r["p99"] = to_float(r.get("p99", 0))
+        r["throughput_agg_ops"] = to_float(r.get("throughput_agg", 0))
+        r["throughput_agg_kops"] = r["throughput_agg_ops"] / 1000.0
 
         zpool = r.get("zswap_pool_size", "").strip()
         r["zswap_pool_size"] = to_float(zpool, None) if zpool else None
@@ -71,9 +74,13 @@ def enrich_rows(data):
         r["prefill_cpu_pct"] = to_float(r.get("prefill_cpu_pct", 0))
         r["prefill_user_pct"] = to_float(r.get("prefill_user_pct", 0))
         r["prefill_sys_pct"] = to_float(r.get("prefill_sys_pct", 0))
+        r["prefill_sys_total_pct"] = to_float(r.get("prefill_sys_total_pct", 0))
         r["run_cpu_pct"] = to_float(r.get("run_cpu_pct", 0))
         r["run_user_pct"] = to_float(r.get("run_user_pct", 0))
         r["run_sys_pct"] = to_float(r.get("run_sys_pct", 0))
+        r["run_sys_total_pct"] = to_float(r.get("run_sys_total_pct", 0))
+        r["configured_instances"] = to_int(r.get("configured_instances", 0))
+        r["actual_instances"] = to_int(r.get("actual_instances", 0))
 
     data.sort(key=lambda r: scenario_key(r.get("scenario", "unknown")))
 
@@ -83,7 +90,10 @@ def enrich_rows(data):
         sys.exit(1)
 
     base_peak = baseline["memory_peak"] / GiB
+    if baseline["swap_mode"] == "zram" and baseline["zswap_pool_size"] is not None:
+        base_peak += baseline["zswap_pool_size"]
     base_tput_kops = baseline["throughput_kops"]
+    base_tput_agg_kops = baseline["throughput_agg_kops"]
     base_p99 = baseline["p99"]
     base_prefill_cpu = baseline["prefill_cpu_pct"]
     base_prefill_user = baseline["prefill_user_pct"]
@@ -91,11 +101,22 @@ def enrich_rows(data):
     base_run_cpu = baseline["run_cpu_pct"]
     base_run_user = baseline["run_user_pct"]
     base_run_sys = baseline["run_sys_pct"]
+    base_prefill_sys_total = baseline["prefill_sys_total_pct"]
+    base_run_sys_total = baseline["run_sys_total_pct"]
 
     for r in data:
         name = r["scenario"]
         peak_gib = r["memory_peak"] / GiB
         swap_gib = r["memory_swap_peak"] / GiB
+
+        # For zram mode: memory.peak does NOT include zram's physical memory
+        # usage (zram is a block device outside cgroup memory accounting).
+        # Add zram pool size to get true physical memory, matching the parent
+        # project's formula: max_memory = cgroup_memory_current + zram_mem_used_total
+        # For zswap mode: memory.peak already includes the zswap pool (kernel
+        # accounts zpool inside memory.current), so no adjustment needed.
+        if r["swap_mode"] == "zram" and r["zswap_pool_size"] is not None:
+            peak_gib += r["zswap_pool_size"]
 
         r["peak_gib"] = peak_gib
         r["save_gib"] = base_peak - peak_gib
@@ -103,6 +124,7 @@ def enrich_rows(data):
         r["swap_gib"] = swap_gib
         r["swap_pct"] = (swap_gib / peak_gib * 100.0) if peak_gib > 0 else 0.0
         r["tput_delta"] = ((r["throughput_kops"] - base_tput_kops) / base_tput_kops * 100.0) if name != "baseline" else 0.0
+        r["tput_agg_delta"] = ((r["throughput_agg_kops"] - base_tput_agg_kops) / base_tput_agg_kops * 100.0) if name != "baseline" and base_tput_agg_kops > 0 else 0.0
         r["p99_delta"] = (r["p99"] - base_p99) if name != "baseline" else 0.0
 
         r["prefill_cpu_delta"] = r["prefill_cpu_pct"] - base_prefill_cpu if name != "baseline" else 0.0
@@ -111,37 +133,49 @@ def enrich_rows(data):
         r["run_cpu_delta"] = r["run_cpu_pct"] - base_run_cpu if name != "baseline" else 0.0
         r["run_user_delta"] = r["run_user_pct"] - base_run_user if name != "baseline" else 0.0
         r["run_sys_delta"] = r["run_sys_pct"] - base_run_sys if name != "baseline" else 0.0
+        r["prefill_sys_total_delta"] = r["prefill_sys_total_pct"] - base_prefill_sys_total if name != "baseline" else 0.0
+        r["run_sys_total_delta"] = r["run_sys_total_pct"] - base_run_sys_total if name != "baseline" else 0.0
+
 
     return data
 
 
 def print_rows(data):
-    print(f"{'Scenario':<15} "
-          f"{'Peak(GiB)':>10} "
-          f"{'Save(GiB)':>10} "
-          f"{'Save%':>7} "
-          f"{'Swap(GiB)':>10} "
-          f"{'Swap%':>7} "
-          f"{'Zpool(GiB)':>11} "
-          f"{'CR(x)':>6} "
-          f"{'Tput(KOPS)':>12} "
-          f"{'ΔTput%':>8} "
-          f"{'p99(ms)':>9} "
-          f"{'Δp99(ms)':>10} "
-          f"{'MemMax':>10} "
-          f"{'PreCPU%':>8} "
-          f"{'ΔPreCPU':>9} "
-          f"{'PreUsr%':>8} "
-          f"{'ΔPreUsr':>9} "
-          f"{'PreSys%':>8} "
-          f"{'ΔPreSys':>9} "
-          f"{'RunCPU%':>8} "
-          f"{'ΔRunCPU':>9} "
-          f"{'RunUsr%':>8} "
-          f"{'ΔRunUsr':>9} "
-          f"{'RunSys%':>8} "
-          f"{'ΔRunSys':>9}")
-    print("-" * 280)
+    header = (f"{'Scenario':<15} "
+              f"{'Peak(GiB)':>10} "
+              f"{'Save(GiB)':>10} "
+              f"{'Save%':>7} "
+              f"{'Swap(GiB)':>10} "
+              f"{'Swap%':>7} "
+              f"{'Zpool(GiB)':>11} "
+              f"{'CR(x)':>6} "
+              f"{'Tput(KOPS)':>12} "
+              f"{'ΔTput%':>8} "
+              f"{'AggTput(KOPS)':>14} "
+              f"{'ΔAggTput%':>10} "
+              f"{'p99(ms)':>9} "
+              f"{'Δp99(ms)':>10} "
+              f"{'MemMax':>10} "
+              f"{'PreCPU%':>8} "
+              f"{'ΔPreCPU':>9} "
+              f"{'PreUsr%':>8} "
+              f"{'ΔPreUsr':>9} "
+              f"{'PreSys%':>8} "
+              f"{'ΔPreSys':>9} "
+              f"{'PreSysTot%':>11} "
+              f"{'ΔPreSysTot':>11} "
+              f"{'RunCPU%':>8} "
+              f"{'ΔRunCPU':>9} "
+              f"{'RunUsr%':>8} "
+              f"{'ΔRunUsr':>9} "
+              f"{'RunSys%':>8} "
+              f"{'ΔRunSys':>9} "
+              f"{'RunSysTot%':>11} "
+              f"{'ΔRunSysTot':>11} "
+              f"{'CfgInst':>8} "
+              f"{'ActInst':>8}")
+    print(header)
+    print("-" * len(header))
 
     for r in data:
         memmax = r["memory_max"] if r["memory_max"] else "-"
@@ -157,6 +191,8 @@ def print_rows(data):
               f"{cr_str:>6} "
               f"{r['throughput_kops']:>12.2f} "
               f"{r['tput_delta']:>8.2f} "
+              f"{r['throughput_agg_kops']:>14.2f} "
+              f"{r['tput_agg_delta']:>10.2f} "
               f"{r['p99']:>9.2f} "
               f"{r['p99_delta']:>10.2f} "
               f"{memmax:>10} "
@@ -166,12 +202,18 @@ def print_rows(data):
               f"{r['prefill_user_delta']:>9.2f} "
               f"{r['prefill_sys_pct']:>8.2f} "
               f"{r['prefill_sys_delta']:>9.2f} "
+              f"{r['prefill_sys_total_pct']:>11.2f} "
+              f"{r['prefill_sys_total_delta']:>11.2f} "
               f"{r['run_cpu_pct']:>8.2f} "
               f"{r['run_cpu_delta']:>9.2f} "
               f"{r['run_user_pct']:>8.2f} "
               f"{r['run_user_delta']:>9.2f} "
               f"{r['run_sys_pct']:>8.2f} "
-              f"{r['run_sys_delta']:>9.2f}")
+              f"{r['run_sys_delta']:>9.2f} "
+              f"{r['run_sys_total_pct']:>11.2f} "
+              f"{r['run_sys_total_delta']:>11.2f} "
+              f"{r['configured_instances']:>8} "
+              f"{r['actual_instances']:>8}")
 
 
 def print_columns(data):
@@ -199,6 +241,8 @@ def print_columns(data):
         ("CR(x)", lambda r: (f"{r['comp_ratio']:.2f}" if r["comp_ratio"] is not None else "-")),
         ("Tput(KOPS)", lambda r: f"{r['throughput_kops']:.2f}"),
         ("ΔTput%", lambda r: f"{r['tput_delta']:.2f}"),
+        ("AggTput(KOPS)", lambda r: f"{r['throughput_agg_kops']:.2f}"),
+        ("ΔAggTput%", lambda r: f"{r['tput_agg_delta']:.2f}"),
         ("p99(ms)", lambda r: f"{r['p99']:.2f}"),
         ("Δp99(ms)", lambda r: f"{r['p99_delta']:.2f}"),
         ("PreCPU%", lambda r: f"{r['prefill_cpu_pct']:.2f}"),
@@ -207,12 +251,18 @@ def print_columns(data):
         ("ΔPreUsr", lambda r: f"{r['prefill_user_delta']:.2f}"),
         ("PreSys%", lambda r: f"{r['prefill_sys_pct']:.2f}"),
         ("ΔPreSys", lambda r: f"{r['prefill_sys_delta']:.2f}"),
+        ("PreSysTot%", lambda r: f"{r['prefill_sys_total_pct']:.2f}"),
+        ("ΔPreSysTot", lambda r: f"{r['prefill_sys_total_delta']:.2f}"),
         ("RunCPU%", lambda r: f"{r['run_cpu_pct']:.2f}"),
         ("ΔRunCPU", lambda r: f"{r['run_cpu_delta']:.2f}"),
         ("RunUsr%", lambda r: f"{r['run_user_pct']:.2f}"),
         ("ΔRunUsr", lambda r: f"{r['run_user_delta']:.2f}"),
         ("RunSys%", lambda r: f"{r['run_sys_pct']:.2f}"),
         ("ΔRunSys", lambda r: f"{r['run_sys_delta']:.2f}"),
+        ("RunSysTot%", lambda r: f"{r['run_sys_total_pct']:.2f}"),
+        ("ΔRunSysTot", lambda r: f"{r['run_sys_total_delta']:.2f}"),
+        ("CfgInst", lambda r: str(r['configured_instances'])),
+        ("ActInst", lambda r: str(r['actual_instances'])),
     ]
 
     for metric, getter in metric_rows:

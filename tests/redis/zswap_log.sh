@@ -14,7 +14,7 @@ OUT="${2:-zswap.csv}"
 echo "timestamp,pool_bytes,stored_pages,logical_bytes,ratio" > "$OUT"
 echo "Logging zswap every ${INTERVAL}s to $OUT (Ctrl-C to stop)"
 
-trap 'echo; echo "Stopped. Saved: '"$OUT"'"; exit 0' INT
+trap 'echo; echo "Stopped. Saved: '"$OUT"'"; exit 0' INT TERM
 
 while true; do
   ts="$(date +"%F %T")"
