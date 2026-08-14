@@ -211,8 +211,14 @@ run_scenario() {
     mkdir -p "${logdir}/${scenario}"
     # Monitor compressed swap stats (zswap or zram)
     local swap_csv="${logdir}/${scenario}/zswap_run.csv"
+    local swap_active=true
     if [[ "$swap_mode" == "zram" ]]; then
-        ./zram_log.sh 1 "$swap_csv" &
+        if [[ -f /sys/block/zram0/mm_stat ]]; then
+            ./zram_log.sh 1 "$swap_csv" &
+        else
+            echo "WARNING: zram device /sys/block/zram0 not present; skipping zram stats logging"
+            swap_active=false
+        fi
     else
         ./zswap_log.sh 1 "$swap_csv" &
     fi
@@ -258,9 +264,14 @@ run_scenario() {
 
     # Parse swap report once (avoid calling zswap_report.sh twice)
     local swap_report
-    swap_report=$(./zswap_report.sh "$swap_csv")
-    zswap_pool_size=$(echo "$swap_report" | awk '/Pool size:/{ print $3}')
-    comp_ratio=$(echo "$swap_report" | awk '/Compression ratio:/{ print $3}')
+    if [[ "$swap_active" == true && -f "$swap_csv" ]]; then
+        swap_report=$(./zswap_report.sh "$swap_csv")
+        zswap_pool_size=$(echo "$swap_report" | awk '/Pool size:/{ print $3}')
+        comp_ratio=$(echo "$swap_report" | awk '/Compression ratio:/{ print $3}')
+    else
+        zswap_pool_size=0
+        comp_ratio=0
+    fi
     
     throughput_avg=0
     throughput_agg=0

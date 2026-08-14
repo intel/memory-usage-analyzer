@@ -33,8 +33,14 @@ echo "Logging zram every ${INTERVAL}s to $OUT (Ctrl-C to stop)"
 trap 'echo; echo "Stopped. Saved: '"$OUT"'"; exit 0' INT TERM
 
 while true; do
+  # Stop reading if the zram device was torn down mid-run; keep looping
+  # quietly until the parent kills us instead of erroring on the missing file.
+  if [[ ! -e "$ZRAM_STAT" ]]; then
+    sleep "$INTERVAL"
+    continue
+  fi
   ts="$(date +"%F %T")"
-  read -r orig_data compr_data mem_used _rest < "$ZRAM_STAT" || continue
+  read -r orig_data compr_data mem_used _rest < "$ZRAM_STAT" 2>/dev/null || { sleep "$INTERVAL"; continue; }
 
   # Validate numeric fields
   [[ "$orig_data" =~ ^[0-9]+$ ]] || continue
