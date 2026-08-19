@@ -23,6 +23,21 @@ setup_penv() {
         python3 -m venv "${venv_dir}" || { echo "ERROR: failed to create venv at ${venv_dir}"; exit 1; }
     fi
 
+    # Debian/Ubuntu strip ensurepip's bundled pip from python3-venv, so a
+    # freshly created venv can be missing pip entirely; bootstrap it.
+    if ! "${venv_dir}/bin/python" -m pip --version >/dev/null 2>&1; then
+        echo "=== Bootstrapping pip in ${venv_dir} ==="
+        "${venv_dir}/bin/python" -m ensurepip --upgrade >/dev/null 2>&1
+        if ! "${venv_dir}/bin/python" -m pip --version >/dev/null 2>&1; then
+            curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
+                && "${venv_dir}/bin/python" /tmp/get-pip.py >/dev/null
+        fi
+        if ! "${venv_dir}/bin/python" -m pip --version >/dev/null 2>&1; then
+            echo "ERROR: pip unavailable in ${venv_dir}. Install it via: apt-get install -y python3-pip python3-venv" >&2
+            exit 1
+        fi
+    fi
+
     if ! "${venv_dir}/bin/python" -c "import matplotlib, bokeh" >/dev/null 2>&1; then
         echo "=== Installing Python dependencies from ${SETUP_PENV_REPO_ROOT}/setup.py into ${venv_dir} ==="
         "${venv_dir}/bin/python" -m pip install --upgrade pip >/dev/null
