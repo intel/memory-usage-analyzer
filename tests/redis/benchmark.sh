@@ -11,8 +11,8 @@ setup_penv "${THIS_DIR}"
 
 
 # Defaults
-no_of_servers=1
-compressor="deflate-iaa_r1_p3"
+no_of_servers=16
+compressor="all"
 db_file=""
 reps=10000
 combined_lines=10
@@ -333,7 +333,8 @@ if [ "$compressor" == "all" ];then
        compressor_list=("zstd_r1_p3" "lz4_r1_p3"  "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r64_p5")
        #compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa_r64_p5" "deflate-iaa-dynamic_r1_p3" "deflate-iaa-dynamic_r64_p5")
    else
-       compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")
+       compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
+       #compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")
    fi
 else
    compressor_list=( "$compressor")
@@ -399,8 +400,8 @@ for comp in "${compressor_list[@]}"; do
         continue
     fi
 
-    sweep_start=95
-    sweep_step=-2
+    sweep_start=85
+    sweep_step=-5
     sweep_end=65
 
     for memlimit in $(seq $sweep_start $sweep_step $sweep_end);do
