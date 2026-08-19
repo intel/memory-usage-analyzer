@@ -6,8 +6,9 @@ This is a charaterization framework to benchamark zswap with IAA using Redis and
 
 Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [README](../../README.md#requirements).
 
-* Install Redis server and memtier-benchmark. 
+* Install dependencies, Redis server and memtier-benchmark. 
   ```
+  [sudo] ../scripts/install_dependencies.sh
   [sudo] ./setup_redis.sh
   ```
 
