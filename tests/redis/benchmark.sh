@@ -5,6 +5,10 @@ LOGDIR="./logdir"
 REDIS_CONFIGS="./redis_configs"
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Ensures ./penv exists with matplotlib/bokeh/etc. and sets PYTHON.
+source "${THIS_DIR}/../scripts/setup_penv.sh"
+setup_penv "${THIS_DIR}"
+
 
 # Defaults
 no_of_servers=1
@@ -118,7 +122,8 @@ if [[ -z "$db_file" ]]; then
     db_file="import_movies_${reps}r_${combined_lines}c.csv"
     if [[ ! -f "$db_file" ]]; then
         echo "=== Generating dataset ${db_file} (reps=${reps}, combined_lines=${combined_lines}) ==="
-        python repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
+        echo "    (this can take a while for large reps/combined_lines values)"
+        "$PYTHON" repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
     fi
 fi
 
@@ -412,12 +417,12 @@ for comp in "${compressor_list[@]}"; do
     done
 
     # Generate report
-    cat ${LOGDIR_COMP}/*.log | python report.py | tee ${LOGDIR_COMP}/$comp.report
+    cat ${LOGDIR_COMP}/*.log | "$PYTHON" report.py | tee ${LOGDIR_COMP}/$comp.report
     report_string+="${LOGDIR_COMP}/$comp.report "
 done
 
 report_string="${report_string% }"
-python report_plot.py ${report_string} --output-dir ${LOGDIR}
+"$PYTHON" report_plot.py ${report_string} --output-dir ${LOGDIR}
 
 # Summarize deflate-iaa availability for this OS/kernel (same trailer as run_dd.sh).
 print_iaa_support_summary "$ran_iaa_algos" "$iaa_attempted"
