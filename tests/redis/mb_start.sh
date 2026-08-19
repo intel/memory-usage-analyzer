@@ -88,8 +88,14 @@ wait_redis_server() {
        sleep 1
   done
   echo "Redis server started"
-  until redis-cli -h localhost -p $port_no ping | grep -q PONG; do
+  # Stay quiet while the server finishes binding; only report if it never comes up.
+  waited=0
+  until redis-cli -h localhost -p $port_no ping 2>/dev/null | grep -q PONG; do
       sleep 1
+      waited=$((waited + 1))
+      if [ $((waited % 10)) -eq 0 ]; then
+          echo "Still waiting for Redis on port $port_no (${waited}s)..."
+      fi
   done
   echo "Redis is ready"
 }
