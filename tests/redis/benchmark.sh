@@ -22,6 +22,7 @@ client_socket_policy="auto"
 server_overflow_policy="siblings-first"
 core_policy="spread-nodes"
 swap_mode="zswap"
+regression_threshold=7
 
 print_usage() {
     cat <<'EOF_HELP'
@@ -43,6 +44,7 @@ Named options:
                                         siblings-first:  primary+sibling cores of each NUMA node before next node
                                         spread-nodes:    primary cores across all NUMA nodes first, then siblings
   --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
+  --threshold, -t <pct>                Throughput regression threshold to stop sweep (default: 10)
   --logdir, -l <path>                 Output log directory
   --help, -h                          Show this help
 EOF_HELP
@@ -74,6 +76,8 @@ while [[ $# -gt 0 ]]; do
             core_policy="$2"; shift 2 ;;
         --swap-mode|-m)
             swap_mode="$2"; shift 2 ;;
+        --threshold|-t)
+            regression_threshold="$2"; shift 2 ;;
         --logdir|-l)
             LOGDIR="$2"; shift 2 ;;
         --help|-h)
@@ -408,10 +412,10 @@ for comp in "${compressor_list[@]}"; do
         echo "Limiting memory to $limit"
         run_scenario memlimit-${memlimit} ${limit} "${LOGDIR_COMP}"
 
-        # Abort sweep when throughput drops by more than 10% vs baseline.
-        if awk -v b="$baseline_throughput" -v c="${throughput_agg:-0}" 'BEGIN {drop=(b-c)/b*100; exit !(drop > 10)}'; then
+        # Abort sweep once throughput drops to/below threshold vs baseline; this scenario's log is kept in the report.
+        if awk -v b="$baseline_throughput" -v c="${throughput_agg:-0}" -v thr="$regression_threshold" 'BEGIN {drop=(b-c)/b*100; exit !(drop >= thr)}'; then
             drop_pct=$(awk -v b="$baseline_throughput" -v c="${throughput_agg:-0}" 'BEGIN {printf "%.2f", (b-c)/b*100}')
-            echo "Throughput dropped by ${drop_pct}% (>10%) at memlimit-${memlimit}; aborting remaining memory-limit sweep for '$comp'"
+            echo "Throughput dropped by ${drop_pct}% (>=${regression_threshold}%) at memlimit-${memlimit}; preserving this point and aborting remaining memory-limit sweep for '$comp'"
             break
         fi
     done
