@@ -122,6 +122,7 @@ if [[ -z "$db_file" ]]; then
     db_file="import_movies_${reps}r_${combined_lines}c.csv"
     if [[ ! -f "$db_file" ]]; then
         echo "=== Generating dataset ${db_file} (reps=${reps}, combined_lines=${combined_lines}) ==="
+        echo "    (this can take a while for large reps/combined_lines values)"
         "$PYTHON" repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
     fi
 fi
