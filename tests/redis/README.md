@@ -8,11 +8,7 @@ Complete the general setup (hardware, kernel, Python, virtual environment, and p
 
 * Install Redis server and memtier-benchmark. 
   ```
-  ./setup_redis.sh
-  ```
-* Generate dataset. This will generate the data to be preloaded to server
-  ```
-  python repeat_redis_file.py -r 10000 -c 10
+  [sudo] ./setup_redis.sh
   ```
 
 # Methodology
@@ -30,10 +26,10 @@ Redis database will be prefilled with the movie data set. memtier-benchmark will
 # Benchmarking Instructions
 
 The benchmark supports two compressed swap modes: **zswap** (kernel frontswap backend) and **zram** (block device swap).
-The appropriate system configuration script (`config_sys_zswap.sh` or `config_sys_zram.sh`) is called automatically based on the selected mode, and the report is generated automatically at the end — there is no separate reporting step.
+The appropriate system configuration script (`config_sys_zswap.sh` or `config_sys_zram.sh`) is called automatically based on the selected mode, and the report is generated automatically at the end — there is no separate reporting step. 
 
 ```
-Usage: ./benchmark.sh [options]
+Usage: [sudo] ./benchmark.sh [options]
 
 Named options:
   --servers, -n <num>                 Number of Redis server instances (default: 1)
@@ -52,16 +48,12 @@ Named options:
   --help, -h                          Show this help
 
 Examples:
-  ./benchmark.sh -m zswap -n 16 -c all               # zswap, 16 servers, all compressors
-  ./benchmark.sh -m zram -n 16 -c all                # zram, 16 servers, all compressors
-  ./benchmark.sh -m zram -n 1 -c deflate-iaa_r64_p5  # zram, 1 server, specific config
-  ./benchmark.sh                                     # defaults: zswap, 1 server, deflate-iaa_r1_p3
+  [sudo] ./benchmark.sh -m zswap -n 16 -c all               # zswap, 16 servers, all compressors
+  [sudo] ./benchmark.sh -m zram -n 16 -c all                # zram, 16 servers, all compressors
+  [sudo] ./benchmark.sh -m zram -n 1 -c deflate-iaa_r64_p5  # zram, 1 server, specific config
+  [sudo] ./benchmark.sh                                     # defaults: zswap, 1 server, deflate-iaa_r1_p3
 ```
 
-Ensure the Python virtual environment is activated before running:
-```
-source virtualenv/bin/activate
-```
 # Expected Results
 
 Once the runs are complete, ./logdir will have all the results including a  comprehensive .html which shows the memory savings possible with <5% performance regression. In addition to that, there will be separate directory for each compressor modes which will have  <compressor>.report with all the details.
