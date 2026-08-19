@@ -8,7 +8,7 @@
 # environment and the repo install are handled by tests/redis/benchmark.sh.
 #
 # Usage:
-#   sudo ./scripts/install_dependencies.sh
+#   sudo ./tests/scripts/install_dependencies.sh
 
 set -euo pipefail
 
@@ -36,7 +36,7 @@ if [ "$OS" == "Ubuntu" ]; then
         git wget curl unzip vim \
         numactl libevent-dev libpcre3-dev libssl-dev zlib1g-dev \
         libxml2-dev libxslt1-dev libffi-dev \
-        libjson-c-dev uuid-dev libkmod-dev libudev-dev asciidoc xmlto \
+        libjson-c-dev uuid-dev libkmod-dev libudev-dev \
         python3 python3-dev python3-pip python3-venv python-is-python3
     apt-get install -y accel-config accel-config-libs || true
 else
@@ -45,7 +45,7 @@ else
         git wget curl unzip vim \
         numactl numactl-devel libevent libevent-devel pcre-devel \
         openssl-devel zlib-devel libxml2-devel libxslt-devel libffi-devel \
-        json-c-devel libuuid-devel kmod-devel systemd-devel asciidoc xmlto \
+        json-c-devel libuuid-devel kmod-devel systemd-devel \
         python3 python3-devel python3-pip
     yum install -y accel-config accel-config-libs accel-config-devel || true
     # CentOS has no python-is-python3 package; provide the `python` alias.
@@ -62,7 +62,7 @@ if ! command -v accel-config &> /dev/null; then
     (
         cd "${src_dir}/idxd-config"
         ./autogen.sh
-        ./configure CFLAGS='-g -O2' --prefix=/usr --sysconfdir=/etc --libdir=/usr/lib64 --enable-test=yes
+        ./configure CFLAGS='-g -O2' --prefix=/usr --sysconfdir=/etc --libdir=/usr/lib64 --disable-docs --enable-test=yes
         make
         make install
     )
