@@ -39,14 +39,6 @@ Intel® Memory Usage Analyzer can
 
 ## Install
 
-Clone the repo and install in a python environment
-
-Creating python virtual environment
-
-```bash
-python -m venv virtualenv
-source virtualenv/bin/activate
-```
 Clone and install
 
 ```bash
