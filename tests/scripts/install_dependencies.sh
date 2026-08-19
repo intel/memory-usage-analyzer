@@ -38,7 +38,8 @@ if [ "$OS" == "Ubuntu" ]; then
         libxml2-dev libxslt1-dev libffi-dev \
         libjson-c-dev uuid-dev libkmod-dev libudev-dev \
         python3 python3-dev python3-pip python3-venv python-is-python3
-    apt-get install -y accel-config accel-config-libs || true
+    apt-get install -y accel-config || true
+    apt-get install -y libaccel-config1 libaccel-config-dev || true
 else
     yum install -y \
         gcc gcc-c++ make autoconf automake libtool pkgconfig \
@@ -47,7 +48,9 @@ else
         openssl-devel zlib-devel libxml2-devel libxslt-devel libffi-devel \
         json-c-devel libuuid-devel kmod-devel systemd-devel \
         python3 python3-devel python3-pip
-    yum install -y accel-config accel-config-libs accel-config-devel || true
+    for pkg in accel-config accel-config-libs accel-config-devel; do
+        yum install -y "$pkg" || true
+    done
     # CentOS has no python-is-python3 package; provide the `python` alias.
     if ! command -v python &> /dev/null; then
         alternatives --set python /usr/bin/python3 2>/dev/null || \
