@@ -31,6 +31,7 @@ echo "== Installing system packages =="
 if [ "$OS" == "Ubuntu" ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
+    apt install -y linux-modules-extra-6.17.0-1017-aws 
     apt-get install -y \
         build-essential autoconf automake libtool pkg-config \
         git wget curl unzip vim \
