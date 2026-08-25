@@ -22,7 +22,7 @@ client_socket_policy="auto"
 server_overflow_policy="siblings-first"
 core_policy="spread-nodes"
 swap_mode="zswap"
-regression_threshold=7
+regression_threshold=6
 
 print_usage() {
     cat <<'EOF_HELP'
@@ -400,7 +400,7 @@ for comp in "${compressor_list[@]}"; do
         continue
     fi
 
-    sweep_start=85
+    sweep_start=80
     sweep_step=-5
     sweep_end=65
 
