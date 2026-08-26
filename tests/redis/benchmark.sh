@@ -400,7 +400,7 @@ for comp in "${compressor_list[@]}"; do
         continue
     fi
 
-    sweep_start=80
+    sweep_start=75
     sweep_step=-5
     sweep_end=65
 
