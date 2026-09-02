@@ -94,16 +94,28 @@ check_kernel_version() {
     local kernel_ver
     kernel_ver=$(uname -r)
     
-    local major_ver
+    # Extract major and minor versions
+    local major_ver minor_ver
     major_ver=$(echo "$kernel_ver" | cut -d. -f1)
+    minor_ver=$(echo "$kernel_ver" | cut -d. -f2)
     
-    if [[ $major_ver -ge 6 ]]; then
-        print_status "PASS" "Kernel version" "$kernel_ver (6.x or later)"
+    # Check for minimum kernel 6.8
+    local min_major=6
+    local min_minor=8
+    local kernel_ok=0
+    
+    if [[ $major_ver -gt $min_major ]]; then
+        kernel_ok=1
+    elif [[ $major_ver -eq $min_major && $minor_ver -ge $min_minor ]]; then
+        kernel_ok=1
+    fi
+    
+    if [[ $kernel_ok -eq 1 ]]; then
+        print_status "PASS" "Kernel version" "$kernel_ver (6.8 or later)"
     else
-        print_status "WARN" "Kernel version" "$kernel_ver (need 6.x or later)"
+        print_status "FAIL" "Kernel version" "$kernel_ver (requires 6.8 or later)"
     fi
 }
-
 # Function to check IAA device count
 check_iaa_device_count() {
     local count
