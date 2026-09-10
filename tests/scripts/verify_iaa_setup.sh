@@ -13,6 +13,8 @@ IAA_DEVICE_ID="0cfe"
 PASS=0
 WARN=0
 FAIL=0
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ENABLE_IAA_SCRIPT="${SCRIPT_DIR}/enable_iaa.sh"
 
 # Color codes for output (safe for log files - only used with TTY)
 if [[ -t 1 ]]; then
@@ -80,6 +82,25 @@ print_status() {
     if [[ -n "$details" ]]; then
         echo "  → $details"
     fi
+}
+
+# Ensure IAA is configured before checking lsmod-based state.
+ensure_iaa_is_enabled() {
+    if lsmod 2>/dev/null | grep -qi iaa_crypto; then
+        return 0
+    fi
+
+    if [[ ! -x "$ENABLE_IAA_SCRIPT" ]]; then
+        print_status "WARN" "IAA setup" "enable_iaa.sh not found or not executable at $ENABLE_IAA_SCRIPT"
+        return 0
+    fi
+
+    print_status "INFO" "IAA setup" "IAA crypto module not loaded; running ${ENABLE_IAA_SCRIPT}"
+    if "$ENABLE_IAA_SCRIPT" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    print_status "WARN" "IAA setup" "enable_iaa.sh exited non-zero; continuing with verification checks"
 }
 
 # Function to check if running as root
@@ -256,6 +277,7 @@ done
 
 # Main verification flow
 check_root
+ensure_iaa_is_enabled
 
 echo ""
 echo -e "${BLUE}IAA Device Verification${RESET}"
