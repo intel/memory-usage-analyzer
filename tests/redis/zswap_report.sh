@@ -11,7 +11,7 @@ IN="${1:-}"
 to_gib() { awk -v b="$1" 'BEGIN{printf "%.3f", b/1024/1024/1024}'; }
 
 # Row where pool_bytes is max
-peak_line="$(awk -F, 'NR>1 { if ($2+0 > m) { m=$2+0; line=$0 } } END { print line }' "$IN")"
+peak_line="$(awk -F, 'NR>1 { if (line == "" || $2+0 > m) { m=$2+0; line=$0 } } END { print line }' "$IN")"
 [[ -n "$peak_line" ]] || { echo "No data rows in $IN"; exit 1; }
 
 peak_ts="$(echo "$peak_line" | awk -F, '{print $1}')"

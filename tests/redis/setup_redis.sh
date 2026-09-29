@@ -4,6 +4,12 @@
 
 # Install Redis
 
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Install the shared environment (pinned Python + venv, accel-config, build
+# tools) before the Redis/memtier-specific dependencies below.
+"${THIS_DIR}/../scripts/install_dependencies.sh"
+
 #redis_version=`redis-server -v | awk -F" " '{print $3}'`
 #echo $redis_version
 #if [ ${redis_version} == "v=6.0.10" ]

@@ -2,21 +2,25 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) 2026, Intel Corporation
 """
-instance_sweep_reporter.py
+vm_sweep_reporter.py
 
-Analyzes Redis instance sweep results and generates:
+Analyzes Redis VM-count sweep results and generates:
   - A text report table (to stdout) when fed log lines via stdin
   - An interactive Bokeh HTML report when invoked with --plot and .report files
 
-The script operates in two modes:
+The x-axis of the sweep is the number of server VMs (client VMs match 1:1). The
+number of redis instances per VM is held fixed (INSTANCES, default 1) and the
+host cgroup memory limit is fixed across the sweep, so growing the VM count
+raises guest memory pressure (compression/swap) at a constant memory ceiling.
 
-1) Report mode (stdin): Parse instance sweep log lines and print a summary table.
-   cat logdir/instances-*.log | python instance_sweep_reporter.py
+Modes:
+
+1) Report mode (stdin): Parse VM sweep log lines and print a summary table.
+   cat logdir/vms-*.log | python vm_sweep_reporter.py
 
 2) Plot mode (--plot): Read one or more .report files and produce an HTML report
-   with interactive Bokeh plots showing performance vs instance count.
-   python instance_sweep_reporter.py --plot comp1.report comp2.report --output-dir ./logdir
-
+   with interactive Bokeh plots showing performance vs VM count.
+   python vm_sweep_reporter.py --plot comp1.report comp2.report --output-dir ./logdir
 """
 
 import argparse
@@ -25,9 +29,9 @@ import re
 import statistics
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-# Allow importing from src/core when running from tests/redis/
+# Allow importing from src/core when running from tests/redis_vm/
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from core.util import find_crossing_point
 
@@ -50,13 +54,19 @@ _FLOAT_FIELDS = [
 ]
 
 _INT_FIELDS = [
+    ("server_vms", "server_vms", 0),
+    ("actual_vms", "actual_vms", 0),
+    ("instances_per_server", "instances_per_server", 1),
     ("configured_instances", "configured_instances", 0),
     ("actual_instances", "actual_instances", 0),
 ]
 
-# Report file column layout (index -> key, converter)
+# Report file column layout (index -> key, converter). Must match the column
+# order emitted by print_report() so parse_report_file() can read it back.
 _REPORT_COLUMNS = [
     ("scenario", str),
+    ("server_vms", int),
+    ("actual_vms", int),
     ("configured_instances", int),
     ("actual_instances", int),
     ("peak_gib", float),
@@ -85,7 +95,8 @@ _CARD_STYLE = (
 # Hover tooltips shared by all Bokeh plots
 HOVER_TOOLTIPS = [
     ("Compressor", "@compressor"),
-    ("Instances (configured)", "@instances"),
+    ("VMs (configured)", "@vms"),
+    ("VMs (actual)", "@actual_vms"),
     ("Instances (actual)", "@actual"),
     ("Performance %", "@perf{0.00}"),
     ("Throughput (KOPS)", "@tput{0.00}"),
@@ -119,10 +130,10 @@ def to_float(val, default=0.0):
 
 
 def scenario_key(name: str):
-    """Sort key: baseline first, then instances-N by N ascending."""
+    """Sort key: baseline first, then vms-N by N ascending."""
     if name == "baseline":
         return (0, 0)
-    m = re.match(r"instances-(\d+)$", name)
+    m = re.match(r"vms-(\d+)$", name)
     if m:
         return (1, int(m.group(1)))
     return (2, name)
@@ -332,7 +343,7 @@ def enrich_rows(data):
 
 
 def print_report(data, accept_kpi=95.0):
-    """Print a text table summarizing instance sweep results."""
+    """Print a text table summarizing VM sweep results."""
     baseline = data[0] if data else None
     if baseline:
         pool_label = "Zram Size" if baseline.get("swap_mode", "zswap") == "zram" else "Zpool Size"
@@ -340,6 +351,7 @@ def print_report(data, accept_kpi=95.0):
         cr_str = f"{baseline['comp_ratio']:.2f}x" if baseline["comp_ratio"] is not None else "-"
         print("\n### Baseline Variation")
         print(f"  Scenario:           {baseline['scenario']}")
+        print(f"  VMs:                {baseline['server_vms']} configured, {baseline['actual_vms']} actual")
         print(f"  Instances:          {baseline['configured_instances']} configured, {baseline['actual_instances']} actual")
         print(f"  Peak Memory:        {baseline['peak_gib']:.2f} GiB")
         print(f"  Throughput:         {baseline['throughput_kops']:.2f} KOPS (per instance)")
@@ -354,6 +366,8 @@ def print_report(data, accept_kpi=95.0):
     swap_mode = baseline.get("swap_mode", "zswap") if baseline else "zswap"
     pool_col_label = "Zram(GiB)" if swap_mode == "zram" else "Zpool(GiB)"
     header = (f"{'Scenario':<16} "
+              f"{'CfgVMs':>7} "
+              f"{'ActVMs':>7} "
               f"{'CfgInst':>8} "
               f"{'ActInst':>8} "
               f"{'Peak(GiB)':>10} "
@@ -376,6 +390,8 @@ def print_report(data, accept_kpi=95.0):
         zpool_str = f"{r['zswap_pool_size']:.2f}" if r["zswap_pool_size"] is not None else "-"
         cr_str = f"{r['comp_ratio']:.2f}" if r["comp_ratio"] is not None else "-"
         print(f"{r['scenario']:<16} "
+              f"{r['server_vms']:>7} "
+              f"{r['actual_vms']:>7} "
               f"{r['configured_instances']:>8} "
               f"{r['actual_instances']:>8} "
               f"{r['peak_gib']:>10.2f} "
@@ -392,13 +408,13 @@ def print_report(data, accept_kpi=95.0):
               f"{r['run_cpu_pct']:>8.2f} "
               f"{r['run_sys_total_pct']:>11.2f}")
 
-    x_vals = [r["configured_instances"] for r in data]
+    x_vals = [r["server_vms"] for r in data]
     y_vals = [r["perf_regression_pct"] for r in data]
     crossing, status = find_crossing_point(x_vals, y_vals, accept_kpi, return_status=True)
 
     print()
     print(f"### KPI Crossing X-Points (threshold: {accept_kpi}%)")
-    print(f"  Crossing Point:  {int(round(crossing))} instances")
+    print(f"  Crossing Point:  {int(round(crossing))} VMs")
     print(f"  Status:          {status}")
 
 
@@ -408,14 +424,14 @@ def print_report(data, accept_kpi=95.0):
 
 
 def compute_crossing_points(series_list, accept_kpi):
-    """Compute the instance count at which performance drops below accept_kpi."""
+    """Compute the VM count at which performance drops below accept_kpi."""
     results = []
     for s in series_list:
         rows = s["rows"]
         if len(rows) < 2:
             results.append({"name": s["name"], "crossing_point": None, "status": "Insufficient data"})
             continue
-        x_vals = [r["configured_instances"] for r in rows]
+        x_vals = [r["server_vms"] for r in rows]
         y_vals = [r["perf_regression_pct"] for r in rows]
         crossing, status = find_crossing_point(x_vals, y_vals, accept_kpi, return_status=True)
         results.append({"name": s["name"], "crossing_point": crossing, "status": status})
@@ -431,7 +447,7 @@ def make_baseline_variation_section(series_list):
     """Build HTML for baseline variation analysis across all series."""
     baselines = []
     for s in series_list:
-        bl_row = next((r for r in s["rows"] if r["scenario"] == "baseline"), None)
+        bl_row = min(s["rows"], key=lambda r: scenario_key(r["scenario"])) if s["rows"] else None
         if bl_row is not None:
             baselines.append({"name": s["name"], "row": bl_row})
 
@@ -492,7 +508,7 @@ def make_baseline_variation_section(series_list):
     # Baseline comparison table
     table_headers = [
         "Compressor", "Tput (KOPS)", "Agg Tput (KOPS)",
-        "Peak Memory (GiB)", "p99 Latency (ms)", "Swap Peak (GiB)", "Instances",
+        "Peak Memory (GiB)", "p99 Latency (ms)", "Swap Peak (GiB)", "VMs",
     ]
     html.append(
         '<table style="border-collapse:collapse; font-family:monospace; font-size:12px; '
@@ -515,7 +531,7 @@ def make_baseline_variation_section(series_list):
             _td(f"{row['peak_gib']:.2f}"),
             _td(f"{row['p99_ms']:.3f}"),
             _td(f"{row['swap_gib']:.2f}"),
-            _td(str(row.get("actual_instances", 0))),
+            _td(str(row.get("server_vms", 0))),
         ]
         html.append(
             f'<tr style="border-bottom:1px solid #ddd;">'
@@ -564,9 +580,9 @@ def make_crossing_point_section(crossing_data, accept_kpi):
     html.append('<h3 style="margin: 0 0 12px 0;">KPI Crossing X-Points</h3>')
     html.append(
         f'<p style="font-size:12px; color:#6b7280; margin:0 0 12px 0;">'
-        f"The crossing point is the approximate instance count at which "
+        f"The crossing point is the approximate VM count at which "
         f"performance drops below {accept_kpi}% of baseline throughput. "
-        f"Higher values indicate a compressor that tolerates more instance density.</p>"
+        f"Higher values indicate a compressor that tolerates more VM density.</p>"
     )
 
     # Summary cards
@@ -576,7 +592,7 @@ def make_crossing_point_section(crossing_data, accept_kpi):
         color = "#16a34a" if val is not None and val > 0 else "#dc2626"
         val_str = f"{int(round(val))}" if val is not None else "N/A"
         html.append(_html_stat_card(
-            cp["name"], f"{val_str} instances", color, f"Status: {cp['status']}",
+            cp["name"], f"{val_str} VMs", color, f"Status: {cp['status']}",
         ))
     html.append("</div>")
 
@@ -588,7 +604,7 @@ def make_crossing_point_section(crossing_data, accept_kpi):
     html.append("<thead>")
     html.append('<tr style="background:#f0f0f0; border-bottom:2px solid #999;">')
     html.append(_th("Compressor", align="left"))
-    html.append(_th("Crossing Point (instances)"))
+    html.append(_th("Crossing Point (VMs)"))
     html.append("</tr>")
     html.append("</thead><tbody>")
 
@@ -612,8 +628,8 @@ def make_crossing_point_section(crossing_data, accept_kpi):
 
 
 def _get_plot_rows(series):
-    """Filter rows to only those where configured == actual instances."""
-    return [r for r in series["rows"] if r["configured_instances"] == r["actual_instances"]]
+    """Filter rows to only those where every configured VM stayed alive."""
+    return [r for r in series["rows"] if r["server_vms"] == r["actual_vms"]]
 
 
 def _make_source(name, plot_rows):
@@ -622,7 +638,8 @@ def _make_source(name, plot_rows):
 
     return ColumnDataSource(data=dict(
         compressor=[name] * len(plot_rows),
-        instances=[r["configured_instances"] for r in plot_rows],
+        vms=[r["server_vms"] for r in plot_rows],
+        actual_vms=[r["actual_vms"] for r in plot_rows],
         actual=[r["actual_instances"] for r in plot_rows],
         perf=[r["perf_regression_pct"] for r in plot_rows],
         tput=[r["tput_kops"] for r in plot_rows],
@@ -647,24 +664,13 @@ def _make_source(name, plot_rows):
 
 def _create_line_plot(series_list, colors, y_field, title, y_label, height=400,
                       legend_loc="top_left", spans=None):
-    """Create a Bokeh line+scatter plot for a given y-field across all series.
-
-    Args:
-        series_list: List of series dicts.
-        colors: Color palette list.
-        y_field: The field name in the data source to plot on y-axis.
-        title: Plot title.
-        y_label: Y-axis label.
-        height: Plot height.
-        legend_loc: Legend location.
-        spans: Optional list of (location, color, dash, width) for reference lines.
-    """
+    """Create a Bokeh line+scatter plot for a given y-field across all series."""
     from bokeh.models import HoverTool, Span
     from bokeh.plotting import figure
 
     p = figure(
         title=title,
-        x_axis_label="Number of Redis Instances",
+        x_axis_label="Number of Server VMs",
         y_axis_label=y_label,
         sizing_mode="stretch_width",
         height=height,
@@ -680,9 +686,9 @@ def _create_line_plot(series_list, colors, y_field, title, y_label, height=400,
         if not plot_rows:
             continue
         source = _make_source(s["name"], plot_rows)
-        p.line("instances", y_field, source=source,
+        p.line("vms", y_field, source=source,
                legend_label=s["name"], color=color, line_width=2)
-        p.scatter("instances", y_field, source=source,
+        p.scatter("vms", y_field, source=source,
                   legend_label=s["name"], color=color, size=8)
 
     if spans:
@@ -713,10 +719,10 @@ def _build_crossing_bar_chart(crossing_data, accept_kpi):
 
     p = figure(
         title=(
-            f"KPI Crossing Points \u2013 Instance Count at Acceptable Performance "
+            f"KPI Crossing Points \u2013 VM Count at Acceptable Performance "
             f"(threshold={accept_kpi}%)"
         ),
-        x_axis_label="Crossing Point (Instance Count)",
+        x_axis_label="Crossing Point (VM Count)",
         y_range=cp_names,
         height=max(200, 80 * len(cp_names)),
         sizing_mode="stretch_width",
@@ -734,7 +740,7 @@ def _build_crossing_bar_chart(crossing_data, accept_kpi):
     p.xaxis.formatter = NumeralTickFormatter(format="0")
     p.add_tools(HoverTool(tooltips=[
         ("Compressor", "@names"),
-        ("Crossing Point (instances)", "@values"),
+        ("Crossing Point (VMs)", "@values"),
         ("Status", "@statuses"),
     ]))
 
@@ -747,8 +753,8 @@ def _build_summary_table_html(series_list):
     pool_col_label = "Zram(GiB)" if "zram" in pool_modes else "Zpool(GiB)"
 
     columns = [
-        "Compressor", "Scenario", "CfgInst", "ActInst", "Peak(GiB)",
-        "Swap(GiB)", "Swap%", pool_col_label, "CR(x)", "Tput(KOPS)",
+        "Compressor", "Scenario", "CfgVMs", "ActVMs", "CfgInst", "ActInst",
+        "Peak(GiB)", "Swap(GiB)", "Swap%", pool_col_label, "CR(x)", "Tput(KOPS)",
         "AggTput(KOPS)", "Perf%", "&Delta;Tput%", "p99(ms)",
         "&Delta;p99(ms)", "RunCPU%", "RunSysTot%",
     ]
@@ -756,22 +762,24 @@ def _build_summary_table_html(series_list):
     # Column definitions legend
     legend_items = [
         f"<b>{columns[0]}</b>: Compression algorithm configuration name",
-        f"<b>{columns[1]}</b>: Instance count scenario (e.g. instances-50)",
-        f"<b>{columns[2]}</b>: Configured number of Redis instances",
-        f"<b>{columns[3]}</b>: Actual running instances (may differ if OOM)",
-        f"<b>{columns[4]}</b>: Peak physical memory usage including zram",
-        f"<b>{columns[5]}</b>: Peak swap usage",
-        f"<b>{columns[6]}</b>: Swap as percentage of peak memory",
+        f"<b>{columns[1]}</b>: VM count scenario (e.g. vms-16)",
+        f"<b>{columns[2]}</b>: Configured number of server VMs",
+        f"<b>{columns[3]}</b>: Actual running server VMs (may differ if a VM died)",
+        f"<b>{columns[4]}</b>: Configured total Redis instances (VMs x instances/VM)",
+        f"<b>{columns[5]}</b>: Actual running instances",
+        f"<b>{columns[6]}</b>: Peak physical memory usage including zram",
+        f"<b>{columns[7]}</b>: Peak swap usage",
+        f"<b>{columns[8]}</b>: Swap as percentage of peak memory",
         f"<b>{pool_col_label}</b>: Compressed pool size",
-        f"<b>{columns[8]}</b>: Compression ratio",
-        f"<b>{columns[9]}</b>: Average per-instance throughput (thousand ops/sec)",
-        f"<b>{columns[10]}</b>: Aggregate throughput across all instances",
-        f"<b>{columns[11]}</b>: Performance as % of baseline throughput",
-        f"<b>{columns[12]}</b>: Throughput change vs baseline",
-        f"<b>{columns[13]}</b>: 99th percentile latency",
-        f"<b>{columns[14]}</b>: p99 latency change vs baseline",
-        f"<b>{columns[15]}</b>: Cgroup CPU utilization during run phase",
-        f"<b>{columns[16]}</b>: System-wide CPU utilization during run phase",
+        f"<b>{columns[10]}</b>: Compression ratio",
+        f"<b>{columns[11]}</b>: Average per-instance throughput (thousand ops/sec)",
+        f"<b>{columns[12]}</b>: Aggregate throughput across all instances",
+        f"<b>{columns[13]}</b>: Performance as % of baseline throughput",
+        f"<b>{columns[14]}</b>: Throughput change vs baseline",
+        f"<b>{columns[15]}</b>: 99th percentile latency",
+        f"<b>{columns[16]}</b>: p99 latency change vs baseline",
+        f"<b>{columns[17]}</b>: Cgroup CPU utilization during run phase",
+        f"<b>{columns[18]}</b>: System-wide CPU utilization during run phase",
     ]
 
     html = "<h3>Summary Data</h3>"
@@ -803,6 +811,7 @@ def _build_summary_table_html(series_list):
         cr_str = f"{r['comp_ratio']:.2f}" if r.get("comp_ratio") is not None else "-"
         cells = [
             comp_name, r["scenario"],
+            f"{r['server_vms']}", f"{r['actual_vms']}",
             f"{r['configured_instances']}", f"{r['actual_instances']}",
             f"{r['peak_gib']:.2f}", f"{r['swap_gib']:.2f}",
             f"{r['swap_pct']:.2f}", zpool_str, cr_str,
@@ -851,6 +860,7 @@ def make_sysconfig_section(run_config: Optional[Dict[str, Any]]) -> str:
         ("NUMA Nodes", _val("numa_nodes")),
         ("Host Memory", f"{_val('host_mem_total_gb')} GB"),
         ("BIOS", f"{_val('bios_version')} ({_val('bios_date')})"),
+        ("QEMU", _val("qemu_version")),
     ]
 
     bench_rows = [
@@ -858,14 +868,16 @@ def make_sysconfig_section(run_config: Optional[Dict[str, Any]]) -> str:
         ("Swap Mode", _val("swap_mode")),
         ("Compressor", _val("requested_compressor")),
         ("Init Limit", f"{_val('init_limit_gb')} GB"),
-        ("Instance Sweep",
-         f"{_val('instance_min')} &rarr; {_val('instance_max')} (step {_val('instance_step')})"),
+        ("VM Sweep",
+         _val('vm_list') if _val('vm_list') != "N/A"
+         else f"{_val('vm_min')} &rarr; {_val('vm_max')} (step {_val('vm_step')})"),
+        ("Instances / VM", _val("instances_per_server")),
+        ("Mem / Instance", f"{_val('mem_per_instance_gb')} GB"),
+        ("Server / Client VM Mem",
+         f"{_val('server_mem_gb')} / {_val('client_mem_gb')} GB"),
         ("Accept KPI", f"{_val('accept_kpi_pct')}%"),
-        ("CPUs (server / client)",
-         f"{_val('server_cpus_per_instance')} / {_val('client_cpus_per_instance')}"),
-        ("Core Frequency", f"{_val('core_frequency_mhz')} MHz"),
-        ("Phase Timeout", f"{_val('phase_timeout_sec')} s"),
-        ("OOM Kill Checks", _val("oom_kill_checks")),
+        ("Duration", f"{_val('duration_sec')} s"),
+        ("Core Policy", _val("core_policy")),
     ]
 
     def _render_table(title, rows):
@@ -903,15 +915,15 @@ def generate_plot(series_list, accept_kpi, output_dir):
     from bokeh.resources import INLINE
     from bokeh.palettes import Category10, Category20
 
-    output_path = Path(output_dir) / "instance_sweep_report.html"
-    output_file(str(output_path), title="Redis Instance Sweep Report")
+    output_path = Path(output_dir) / "vm_sweep_report.html"
+    output_file(str(output_path), title="Redis VM Sweep Report")
 
     colors = Category10[10] if len(series_list) <= 10 else Category20[20]
 
     # Performance plot (with reference lines)
     p_perf = _create_line_plot(
         series_list, colors, y_field="perf",
-        title="Average Throughput vs Instance Count",
+        title="Average Throughput vs VM Count",
         y_label="Performance (% of baseline)",
         height=500, legend_loc="top_right",
         spans=[
@@ -923,14 +935,14 @@ def generate_plot(series_list, accept_kpi, output_dir):
     # Aggregate throughput plot
     p_tput = _create_line_plot(
         series_list, colors, y_field="agg_tput",
-        title="Aggregate Throughput vs Instance Count",
+        title="Aggregate Throughput vs VM Count",
         y_label="Aggregate Throughput (KOPS)",
     )
 
     # p99 latency plot
     p_lat = _create_line_plot(
         series_list, colors, y_field="p99",
-        title="p99 Latency vs Instance Count",
+        title="p99 Latency vs VM Count",
         y_label="p99 Latency (ms)",
     )
 
@@ -945,14 +957,15 @@ def generate_plot(series_list, accept_kpi, output_dir):
 
     # Header
     div_header = Div(text=(
-        "<h2>Redis Instance Sweep Report</h2>"
+        "<h2>Redis VM Sweep Report</h2>"
         f"<p>Acceptable KPI threshold: {accept_kpi}% of baseline</p>"
         '<div style="font-size:11px; color:#555; margin:8px 0; line-height:1.6; '
         'border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; background:#f9fafb;">'
         '<b>Hover Info Definitions:</b><br>'
         '<b>Compressor</b>: Compression algorithm configuration &nbsp;|&nbsp; '
-        '<b>Instances (configured)</b>: Target number of Redis instances &nbsp;|&nbsp; '
-        '<b>Instances (actual)</b>: Actually running instances &nbsp;|&nbsp; '
+        '<b>VMs (configured)</b>: Target number of server VMs &nbsp;|&nbsp; '
+        '<b>VMs (actual)</b>: Actually running server VMs &nbsp;|&nbsp; '
+        '<b>Instances (actual)</b>: Actually running Redis instances &nbsp;|&nbsp; '
         '<b>Performance %</b>: Throughput as % of baseline &nbsp;|&nbsp; '
         '<b>Throughput (KOPS)</b>: Average per-instance ops/sec (thousands) &nbsp;|&nbsp; '
         '<b>Agg Throughput (KOPS)</b>: Total throughput across all instances &nbsp;|&nbsp; '
@@ -990,7 +1003,7 @@ def generate_plot(series_list, accept_kpi, output_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Redis instance sweep reporter")
+    parser = argparse.ArgumentParser(description="Redis VM sweep reporter")
     parser.add_argument(
         "--plot", nargs="+", metavar="REPORT_FILE",
         help="Generate HTML plot from .report files",

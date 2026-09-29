@@ -29,11 +29,12 @@ Usage:
 """
 
 import argparse
+import json
 import re
 import statistics
 import sys
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Optional, Tuple
 
 from bokeh.io import output_file, save
 from bokeh.layouts import column
@@ -56,6 +57,91 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from core.util import find_crossing_point
 
 Row = Dict[str, Any]
+
+
+def load_run_config(path: str) -> Dict[str, Any]:
+    """Load run_config.json (best-effort). Returns {} if missing/invalid."""
+    if not path or not Path(path).is_file():
+        return {}
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError) as exc:
+        print(f"WARNING: could not read run-config '{path}': {exc}")
+        return {}
+
+
+def make_sysconfig_section(run_config: Optional[Dict[str, Any]]) -> str:
+    """Build HTML for a system configuration section from run_config.json."""
+    if not run_config:
+        return ""
+
+    def _val(key, default="N/A"):
+        v = run_config.get(key, default)
+        return str(v) if v not in (None, "") else default
+
+    # The VM benchmark (tests/redis_vm) sets server_vms; the bare-metal redis
+    # benchmark does not. Hide VM-only rows when they don't apply.
+    is_vm = bool(run_config.get("server_vms"))
+
+    sys_rows = [
+        ("Hostname", _val("hostname")),
+        ("Date", _val("date")),
+        ("Kernel", _val("kernel")),
+        ("CPU Model", _val("cpu_model")),
+        ("Sockets / Cores / Threads",
+         f"{_val('cpu_sockets')} / {_val('cores_per_socket')} / {_val('threads_per_core')}"),
+        ("Total CPUs", _val("total_cpus")),
+        ("NUMA Nodes", _val("numa_nodes")),
+        ("Host Memory", f"{_val('host_mem_total_gb')} GB"),
+        ("BIOS", f"{_val('bios_version')} ({_val('bios_date')})"),
+    ]
+    if is_vm:
+        sys_rows.append(("QEMU", _val("qemu_version")))
+
+    bench_rows = []
+    if is_vm:
+        bench_rows.append(
+            ("Server VMs", f"{_val('server_vms')} &times; {_val('server_mem_gb')} GB "
+                           f"({_val('instances_per_server')} inst &times; {_val('mem_per_instance_gb')} GB)"))
+        bench_rows.append(("Client VMs", f"{_val('client_vms')} &times; {_val('client_mem_gb')} GB"))
+        bench_rows.append(("vCPUs (server / client)", f"{_val('server_vcpus')} / {_val('client_vcpus')}"))
+    else:
+        bench_rows.append(("CPUs (server / client)", f"{_val('server_vcpus')} / {_val('client_vcpus')}"))
+    bench_rows.append(("Total Instances", _val("total_instances")))
+    bench_rows.append(("Dataset", _val("db_file")))
+    if "duration_sec" in run_config:
+        bench_rows.append(("Duration", f"{_val('duration_sec')}s"))
+    bench_rows.append(("Swap Mode", _val("swap_mode")))
+    bench_rows.append(("Compressor", _val("requested_compressor")))
+    bench_rows.append(("Core Policy", _val("core_policy")))
+    bench_rows.append(("Sweep", f"{_val('sweep_start_pct')}% &rarr; {_val('sweep_end_pct')}% "
+                                f"(step {_val('sweep_step_pct')}%)"))
+    bench_rows.append(("Regression Threshold", f"{_val('regression_threshold_pct')}%"))
+    if "mthp" in run_config:
+        bench_rows.append(("mTHP", _val("mthp", "disabled")))
+
+    def _render_table(title, rows):
+        h = ['<div style="margin-bottom:16px;">']
+        h.append(f'<div style="font-size:13px; font-weight:600; color:#374151; margin-bottom:6px;">{title}</div>')
+        h.append('<table style="border-collapse:collapse; font-family:monospace; font-size:12px; '
+                 'border:1px solid #ccc; width:100%; max-width:700px;">')
+        for label, value in rows:
+            h.append(
+                f'<tr style="border-bottom:1px solid #eee;">'
+                f'<td style="padding:4px 10px; color:#6b7280; white-space:nowrap; '
+                f'border-right:1px solid #ccc; width:200px;">{label}</td>'
+                f'<td style="padding:4px 10px;">{value}</td></tr>'
+            )
+        h.append('</table></div>')
+        return "\n".join(h)
+
+    html = ['<div style="margin: 24px 0;">']
+    html.append('<h3 style="margin: 0 0 12px 0;">System Configuration</h3>')
+    html.append('<div style="display:flex; flex-wrap:wrap; gap:24px;">')
+    html.append(_render_table("Host", sys_rows))
+    html.append(_render_table("Benchmark Parameters", bench_rows))
+    html.append('</div></div>')
+    return "\n".join(html)
 
 
 def percent_variation(values: List[float]) -> tuple:
@@ -679,11 +765,23 @@ def make_instance_completeness_section(series: List[Dict[str, Any]]) -> str:
     return "\n".join(html)
 
 
+def _scenario_sort_key(scenario: str) -> Tuple[int, float, str]:
+    """Order scenarios as: baseline first, then memlimit-XX by XX descending."""
+    if scenario == "baseline":
+        return (0, 0.0, "")
+    m = re.match(r"memlimit-(\d+)", scenario)
+    if m:
+        return (1, -float(m.group(1)), "")
+    return (2, 0.0, scenario)
+
+
 def make_table_transposed(rows: List[Row], title: str) -> str:
     """Generate HTML table with scenarios as columns and metrics as rows.
     Returns raw HTML string (not a Bokeh widget) to avoid escaping issues."""
     if not rows:
         return "<p>No data</p>"
+
+    rows = sorted(rows, key=lambda r: _scenario_sort_key(r["scenario"]))
 
     metrics_order = [
         ("MemMax", lambda r: r["memmax"]),
@@ -814,7 +912,18 @@ def main():
         default=".",
         help="Output directory to save the results. Default: current directory.",
     )
+    ap.add_argument(
+        "--run-config",
+        type=str,
+        default="",
+        help="run_config.json to embed run metadata (default: <output-dir>/run_config.json).",
+    )
     args = ap.parse_args()
+
+    # Mirror postgresql/report_plot.py: auto-load run_config.json from the
+    # output dir unless an explicit path is given.
+    run_config_path = args.run_config or str(Path(args.output_dir) / "run_config.json")
+    run_config = load_run_config(run_config_path)
 
     threshold_pct = float(args.threshold)
     thr_line = -abs(threshold_pct)
@@ -1299,6 +1408,9 @@ def main():
         sizing_mode="stretch_width",
     )
 
+    config_html = make_sysconfig_section(run_config)
+    config_div = Div(text=config_html, sizing_mode="stretch_width") if config_html else None
+
     summary_header = Div(text="<h3 style='margin: 16px 0 8px 0;'>Summary</h3>", sizing_mode="stretch_width")
     summaries = [Div(text=summarize(s["rows"], threshold_pct, s["name"]), sizing_mode="stretch_width") for s in series]
 
@@ -1345,6 +1457,7 @@ def main():
 
     layout = column(
         header,
+        *([config_div] if config_div is not None else []),
         p_tput,
         p_agg_tput,
         p_p99,
@@ -1361,11 +1474,7 @@ def main():
         sizing_mode="stretch_width",
     )
 
-    out = (
-        f"{args.output_dir}/combined_{len(series)}_thr{threshold_pct:g}_report.html"
-        if len(series) > 1
-        else f"{args.output_dir}/{series[0]['name']}_thr{threshold_pct:g}_report.html"
-    )
+    out = f"{args.output_dir}/report.html"
     output_file(out, title="Memory Savings Tradeoff Report")
     save(layout, resources=INLINE)
 

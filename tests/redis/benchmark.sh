@@ -5,10 +5,6 @@ LOGDIR="./logdir"
 REDIS_CONFIGS="./redis_configs"
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Ensures ./penv exists with matplotlib/bokeh/etc. and sets PYTHON.
-source "${THIS_DIR}/../scripts/setup_penv.sh"
-setup_penv "${THIS_DIR}"
-
 
 # Defaults
 no_of_servers=16
@@ -22,7 +18,58 @@ client_socket_policy="auto"
 server_overflow_policy="siblings-first"
 core_policy="spread-nodes"
 swap_mode="zswap"
-regression_threshold=6
+mthp=""
+regression_threshold=7
+sweep_start=95
+sweep_step=-2
+sweep_end=65
+NUMA_BALANCING_STATE=""
+
+write_sysctl_value() {
+    local path="$1"
+    local value="$2"
+    if [[ "$(id -u)" -eq 0 ]]; then
+        printf '%s' "$value" > "$path"
+    else
+        sudo sh -c "printf '%s' '$value' > '$path'"
+    fi
+}
+
+read_sysctl_value() {
+    local path="$1"
+    if [[ -f "$path" ]]; then
+        if [[ "$(id -u)" -eq 0 ]]; then
+            cat "$path"
+        else
+            sudo cat "$path"
+        fi
+    else
+        echo ""
+    fi
+}
+
+disable_numa_balancing() {
+    local path="/proc/sys/kernel/numa_balancing"
+    if [[ -f "$path" ]]; then
+        NUMA_BALANCING_STATE="$(read_sysctl_value "$path" | tr -d '\n')"
+        if [[ -z "$NUMA_BALANCING_STATE" ]]; then
+            NUMA_BALANCING_STATE="1"
+        fi
+        write_sysctl_value "$path" "0"
+        echo "NUMA balancing disabled for benchmark (was: ${NUMA_BALANCING_STATE})"
+    fi
+}
+
+restore_numa_balancing() {
+    local path="/proc/sys/kernel/numa_balancing"
+    if [[ -f "$path" && -n "$NUMA_BALANCING_STATE" ]]; then
+        write_sysctl_value "$path" "$NUMA_BALANCING_STATE"
+        echo "NUMA balancing restored to ${NUMA_BALANCING_STATE}"
+        NUMA_BALANCING_STATE=""
+    fi
+}
+
+trap restore_numa_balancing EXIT
 
 print_usage() {
     cat <<'EOF_HELP'
@@ -44,6 +91,7 @@ Named options:
                                         siblings-first:  primary+sibling cores of each NUMA node before next node
                                         spread-nodes:    primary cores across all NUMA nodes first, then siblings
   --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
+  --mthp <sizes>                      mTHP sizes, comma-separated (e.g. 64kB,128kB)
   --threshold, -t <pct>                Throughput regression threshold to stop sweep (default: 10)
   --logdir, -l <path>                 Output log directory
   --help, -h                          Show this help
@@ -76,6 +124,8 @@ while [[ $# -gt 0 ]]; do
             core_policy="$2"; shift 2 ;;
         --swap-mode|-m)
             swap_mode="$2"; shift 2 ;;
+        --mthp)
+            mthp="$2"; shift 2 ;;
         --threshold|-t)
             regression_threshold="$2"; shift 2 ;;
         --logdir|-l)
@@ -120,6 +170,8 @@ if [[ "$core_policy" != "siblings-first" && "$core_policy" != "spread-nodes" ]];
     exit 1
 fi
 
+disable_numa_balancing
+
 # Derive the dataset filename from reps/combined_lines and generate it if missing.
 # An explicit --db-file overrides both the name and the generation step.
 if [[ -z "$db_file" ]]; then
@@ -127,7 +179,7 @@ if [[ -z "$db_file" ]]; then
     if [[ ! -f "$db_file" ]]; then
         echo "=== Generating dataset ${db_file} (reps=${reps}, combined_lines=${combined_lines}) ==="
         echo "    (this can take a while for large reps/combined_lines values)"
-        "$PYTHON" repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
+        python repeat_redis_file.py -r "${reps}" -c "${combined_lines}"
     fi
 fi
 
@@ -199,6 +251,44 @@ read_vals_after() {
     SYS_SEC=$(( dsys / 1000 ))
     ELAPSED_SEC=$(( dt / 1000 ))
     
+}
+
+# Emit run_config.json for report_plot.py's System Configuration section.
+# Uses the shared collect_sysinfo.sh helper so host details (incl. BIOS) match
+# tests/redis_vm/benchmark.sh.
+write_run_config() {
+    local outdir="$1"
+    source "${THIS_DIR}/../scripts/collect_sysinfo.sh"
+    collect_sysinfo
+
+    cat > "${outdir}/run_config.json" <<EOF
+{
+  "date": "$(date -Iseconds)",
+  "hostname": "$(hostname)",
+  "kernel": "$(uname -r)",
+  "cpu_model": "${SYSINFO_CPU_MODEL}",
+  "cpu_sockets": "${SYSINFO_CPU_SOCKETS:-0}",
+  "cores_per_socket": "${SYSINFO_CORES_PER_SOCKET:-0}",
+  "threads_per_core": "${SYSINFO_THREADS_PER_CORE:-0}",
+  "total_cpus": "${SYSINFO_TOTAL_CPUS:-0}",
+  "numa_nodes": "${SYSINFO_NUMA_NODES:-0}",
+  "host_mem_total_gb": "${SYSINFO_MEM_TOTAL_GB}",
+  "bios_version": "${SYSINFO_BIOS_VERSION}",
+  "bios_date": "${SYSINFO_BIOS_DATE}",
+  "db_file": "${db_file}",
+  "total_instances": "${no_of_servers}",
+  "instances_per_server": "${no_of_servers}",
+  "server_vcpus": "${redis_server_cpus_per_instance}",
+  "client_vcpus": "${memtier_cpus_per_instance}",
+  "swap_mode": "${swap_mode}",
+  "requested_compressor": "${compressor}",
+  "core_policy": "${core_policy}",
+  "sweep_start_pct": "${sweep_start}",
+  "sweep_end_pct": "${sweep_end}",
+  "sweep_step_pct": "${sweep_step#-}",
+  "regression_threshold_pct": "${regression_threshold}"
+}
+EOF
 }
 
 
@@ -325,13 +415,45 @@ run_scenario() {
 
 }
 
+# ─── Save run configuration metadata ─────────────────────────────────
+source "${THIS_DIR}/../scripts/collect_sysinfo.sh"
+collect_sysinfo
+cat > "${LOGDIR}/run_config.json" <<RUNCFG
+{
+  "date": "$(date -Iseconds)",
+  "hostname": "$(hostname)",
+  "kernel": "$(uname -r)",
+  "cpu_model": "$SYSINFO_CPU_MODEL",
+  "cpu_sockets": ${SYSINFO_CPU_SOCKETS:-0},
+  "cores_per_socket": ${SYSINFO_CORES_PER_SOCKET:-0},
+  "threads_per_core": ${SYSINFO_THREADS_PER_CORE:-0},
+  "total_cpus": ${SYSINFO_TOTAL_CPUS:-0},
+  "numa_nodes": ${SYSINFO_NUMA_NODES:-0},
+  "host_mem_total_gb": $SYSINFO_MEM_TOTAL_GB,
+  "bios_version": "$SYSINFO_BIOS_VERSION",
+  "bios_date": "$SYSINFO_BIOS_DATE",
+  "db_file": "$db_file",
+  "no_of_servers": $no_of_servers,
+  "redis_server_cpus_per_instance": $redis_server_cpus_per_instance,
+  "memtier_cpus_per_instance": $memtier_cpus_per_instance,
+  "client_socket_policy": "$client_socket_policy",
+  "core_policy": "$core_policy",
+  "swap_mode": "$swap_mode",
+  "mthp": "$mthp",
+  "requested_compressor": "$compressor"
+}
+RUNCFG
+echo "Saved run_config.json"
+
 # The naming convention
 # <compressor>_r<reclaim-0batchsize>_p<page-cluster>
 if [ "$compressor" == "all" ];then
    # Check if this is a custom kernel with reclaim-batchsize support.
    if [ -f /proc/sys/vm/reclaim-batchsize ]; then
-       compressor_list=("zstd_r1_p3" "lz4_r1_p3"  "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r64_p5")
-       #compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa_r64_p5" "deflate-iaa-dynamic_r1_p3" "deflate-iaa-dynamic_r64_p5")
+
+       #compressor_list=("zstd_r1_p3" "lz4_r1_p3"  "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r64_p5")
+       compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa_r64_p5" "deflate-iaa-dynamic_r1_p3" "deflate-iaa-dynamic_r64_p5" )
+       #compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r1_p3" )
    else
        compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
        #compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")
@@ -364,16 +486,13 @@ for comp in "${compressor_list[@]}"; do
 
     [[ "$comp_algo" == deflate-iaa* ]] && iaa_attempted=true
 
+    config_args=(-c "$comp_algo" -r "$reclaim_batchsize" -p "$page_cluster")
+    [[ -n "$mthp" ]] && config_args+=(-t "$mthp")
+
     if [[ "$swap_mode" == "zram" ]]; then
-        "${THIS_DIR}/../scripts/config_sys_zram.sh" \
-            -c "$comp_algo" \
-            -r "$reclaim_batchsize" \
-            -p "$page_cluster"
+        "${THIS_DIR}/../scripts/config_sys_zram.sh" "${config_args[@]}"
     else
-        "${THIS_DIR}/../scripts/config_sys_zswap.sh" \
-            -c "$comp_algo" \
-            -r "$reclaim_batchsize" \
-            -p "$page_cluster"
+        "${THIS_DIR}/../scripts/config_sys_zswap.sh" "${config_args[@]}"
     fi
 
     if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
@@ -400,10 +519,6 @@ for comp in "${compressor_list[@]}"; do
         continue
     fi
 
-    sweep_start=75
-    sweep_step=-5
-    sweep_end=65
-
     for memlimit in $(seq $sweep_start $sweep_step $sweep_end);do
         limit=$((baseline_max * memlimit /100))
         if (( limit <= 0 )); then
@@ -422,12 +537,13 @@ for comp in "${compressor_list[@]}"; do
     done
 
     # Generate report
-    cat ${LOGDIR_COMP}/*.log | "$PYTHON" report.py | tee ${LOGDIR_COMP}/$comp.report
+    cat ${LOGDIR_COMP}/*.log | python report.py | tee ${LOGDIR_COMP}/$comp.report
     report_string+="${LOGDIR_COMP}/$comp.report "
 done
 
 report_string="${report_string% }"
-"$PYTHON" report_plot.py ${report_string} --output-dir ${LOGDIR}
+write_run_config "${LOGDIR}"
+python report_plot.py ${report_string} --output-dir ${LOGDIR}
 
 # Summarize deflate-iaa availability for this OS/kernel (same trailer as run_dd.sh).
 print_iaa_support_summary "$ran_iaa_algos" "$iaa_attempted"
