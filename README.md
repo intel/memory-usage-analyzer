@@ -39,11 +39,14 @@ Intel® Memory Usage Analyzer can
 
 ## Install
 
-Clone and install
+Clone the repository and run the dependency installer. It installs the OS
+packages, accel-config, the pinned Python, and this repository (editable
+install inside an isolated virtualenv), then puts the helper scripts on PATH.
 
 ```bash
 git clone https://github.com/intel/memory-usage-analyzer.git
-pip install -e memory-usage-analyzer
+cd memory-usage-analyzer
+sudo ./tests/scripts/install_dependencies.sh
 ```
 
 ## Documentation
