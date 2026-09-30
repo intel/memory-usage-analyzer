@@ -60,10 +60,10 @@ the SLIRP gateway `10.0.2.2:<host_port>`. SSH ports: servers `2240+`, clients
 
 Server and client VMs get **disjoint host-core blocks**, pinned with `numactl`:
 
-- `--core-policy contiguous` (default): servers occupy the first cores, clients
-  the block after them.
-- `--core-policy numa-split`: servers on NUMA node 0, clients on node 1 (when
-  both fit), physically separating load generation from the servers.
+- `--core-policy spread-nodes` (default): primary cores are spread across all
+  NUMA nodes first, then their SMT siblings are used.
+- `--core-policy siblings-first`: a NUMA node's primary and SMT sibling cores are
+  filled before moving on to the next node.
 - `--server-cpusets "0-3;4-7"` / `--client-cpusets "8-10;11-13"`: explicit
   per-VM override (semicolon-separated, one entry per VM).
 
@@ -152,10 +152,10 @@ requiring roughly **≥ 690 GB** host RAM. Lower `--mem-per-instance`,
 `--instances`, or `--server-vms` if you hit the "exceeds available host RAM" error.
 
 **CPU pinning:** server VMs get `instances + 1` vCPUs, client VMs get `instances`
-(min 1). With the default `contiguous` policy the VMs want
+(min 1). With the default `spread-nodes` policy the VMs want
 `server_vms × (instances+1) + client_vms × instances` disjoint host cores for
 clean pinning; with fewer cores the later VMs run unpinned (they still run, but
-contend for cores). Use `--core-policy numa-split` or explicit
+contend for cores). Use `--core-policy siblings-first` or explicit
 `--server-cpusets` / `--client-cpusets` to control placement.
 
 ## Scripts
@@ -236,7 +236,7 @@ with the bundled generator (`python repeat_redis_file.py -r 10000 -c 10`);
 --client-mem <GB>         RAM per client VM (default: 2)
 --server-vcpus <N>        vCPUs per server VM (default: instances + 1)
 --client-vcpus <N>        vCPUs per client VM (default: instances)
---core-policy <p>         contiguous | numa-split (default: contiguous)
+--core-policy <p>         spread-nodes | siblings-first (default: spread-nodes)
 --server-cpusets <map>    Explicit per-server host cpusets, ';'-separated (e.g. "0-2;3-5")
 --client-cpusets <map>    Explicit per-client host cpusets
 --db-file <name>          Redis dataset file (default: import_movies_10000r_10c.redis)
@@ -246,10 +246,11 @@ with the bundled generator (`python repeat_redis_file.py -r 10000 -c 10`);
 --duration <sec>          memtier run duration per scenario (default: 120)
 --swap-mode <mode>        zswap or zram (default: zswap)
 --compressor <name>       Compressor profile or 'all' (default: all)
-  --sweep-start <pct>       Sweep start, % of baseline peak (default: 80)
-  --sweep-end <pct>         Sweep end,   % of baseline peak (default: 40)
---sweep-step <pct>        Sweep step in % (default: 2)
---threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 10)
+--sweep-start <pct>       Sweep start, % of baseline peak (default: 90)
+--sweep-end <pct>         Sweep end,   % of baseline peak (default: 75)
+--sweep-step <pct>        Sweep step in % (default: 5)
+--mthp <sizes>            mTHP sizes, comma-separated (e.g. 64kB,128kB)
+--threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 6)
 --logdir, -l <path>       Output directory (default: ./logdir)
 ```
 

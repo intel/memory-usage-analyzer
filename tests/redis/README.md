@@ -37,13 +37,18 @@ Named options:
                                       Supports: lzo, lz4, zstd, deflate-iaa, deflate-iaa-dynamic
                                       Append _r<N>_p<N> to set reclaim-batchsize and
                                       page-cluster (e.g. deflate-iaa_r64_p5)
+  --reps, -r <num>                    Dataset repetitions for generation (default: 10000)
+  --combined-lines <num>              Lines combined per entry for generation (default: 10)
   --db-file, -d <path>                Input DB file, .csv or .redis (default: import_movies_10000r_10c.csv)
+                                      Overrides the dataset auto-generated from --reps/--combined-lines
   --server-cpus <num>                 Cores per redis server instance (default: 1)
   --client-cpus <num>                 Cores per memtier client instance (default: 1)
   --client-socket-policy <auto|same>  Client socket policy (default: auto)
   --core-policy <siblings-first|spread-nodes>
                                       Core selection policy (default: spread-nodes)
   --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
+  --mthp <sizes>                      mTHP sizes, comma-separated (e.g. 64kB,128kB)
+  --threshold, -t <pct>               Throughput regression threshold to stop sweep (default: 7)
   --logdir, -l <path>                 Output log directory (default: ./logdir)
   --help, -h                          Show this help
 
@@ -100,109 +105,5 @@ In **zswap** mode, `Peak(GiB)` equals `CgroupPeak(GiB)` because the zswap compre
 | **ΔRunSysTot** | `RunSysTot% − baseline_RunSysTot%` | Same |
 | **CfgInst** | `no_of_servers` (requested instances) | Same |
 | **ActInst** | Count of instances that produced valid run logs | Same |
-
-# Instance Sweep
-
-The instance sweep measures how Redis performance scales as the number of server instances increases under a fixed memory budget. It is useful for finding the maximum number of instances that fit within a given memory budget before performance degrades beyond an acceptable KPI threshold.
-
-`instance_sweep_script.sh` runs the whole flow end to end: it generates the dataset with `repeat_redis_file.py` if it is missing, configures the swap subsystem (`config_sys_zram.sh` / `config_sys_zswap.sh`), sweeps the instance counts, and produces both the per-config `.report` tables and the combined HTML report by calling `instance_sweep_reporter.py` internally. There is no need to run the reporter separately.
-
-## Usage
-
-```
-Usage: ./instance_sweep_script.sh [options]
-
-Named options:
-  --compressor, -c <name>             Compressor name or 'all' (default: all)
-  --reps, -r <num>                    Dataset repetitions for generation (default: 4000)
-  --combined-lines <num>              Lines combined per entry for generation (default: 3)
-  --db-file, -d <path>                Input DB file, .csv or .redis. Overrides the
-                                      auto-generated dataset from --reps/--combined-lines
-  --server-cpus <num>                 Cores per redis server instance (default: 1)
-  --client-cpus <num>                 Cores per memtier client instance (default: 1)
-  --client-socket-policy <auto|same>  Client socket policy (default: auto)
-  --swap-mode, -m <zswap|zram>        Swap mode (default: zram)
-  --init-limit <GB>                   Total physical memory budget in GB (default: 64)
-                                      Baseline: cgroup memory.max = init-limit
-                                      Zram: cgroup memory.max = init-limit - zram-limit
-  --instance-min <num>                Min number of instances to sweep (default: 40)
-  --instance-max <num>                Max number of instances to sweep (default: 65)
-  --instance-step <num>               Step size for instance sweep (default: 5)
-  --accept-kpi <num>                  Acceptable KPI threshold % (default: 95)
-  --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 1)
-  --phase-timeout <sec>               Max seconds per phase before kill (default: 1800)
-  --frequency, -f <MHz>               Core frequency in MHz (default: 3500)
-  --zram-limit <GB>                   Zram physical memory limit in GB (subtracted from
-                                      --init-limit to set the cgroup memory.max)
-  --zram-disksize <GB>                Zram virtual disk size in GB (swap space advertised)
-  --logdir, -l <path>                 Output log directory (default: ./logdir_instance_sweep)
-  --help, -h                          Show this help
-
-Examples:
-  # Single compressor, zram mode
-  ./instance_sweep_script.sh -m zram -c deflate-iaa_r64_p5 --instance-min 45 --instance-max 70
-
-  # All compressor configs (loops through baseline + additional configs)
-  ./instance_sweep_script.sh -m zram -c all -f 3500 --init-limit 64 --instance-min 45 --instance-max 70
-
-  # Single config with explicit zram limit and disksize
-  ./instance_sweep_script.sh -m zram -c deflate-iaa-dynamic_r64_p5_l12_s64 -f 3500 --instance-min 50 --instance-max 70
-
-  # zswap mode
-  ./instance_sweep_script.sh -m zswap -c all --init-limit 64 --accept-kpi 95
-```
-
-## Compressor Naming Convention
-
-The compressor string encodes all per-config parameters:
-
-```
-<algorithm>_r<reclaim-batchsize>_p<page-cluster>[_l<zram-mem-limit-GB>_s<zram-disksize-GB>]
-```
-
-| Suffix | Meaning | Example |
-|--------|---------|---------|
-| `_r64` | reclaim-batchsize = 64 | `deflate-iaa_r64_p5` |
-| `_p5` | page-cluster = 5 | `deflate-iaa_r64_p5` |
-| `_l12` | zram memory limit = 12 GB | `deflate-iaa-dynamic_r32_p3_l12_s64` |
-| `_s64` | zram disk size = 64 GB | `deflate-iaa-dynamic_r32_p3_l12_s64` |
-| `_l0_s0` | no limit, default disksize | `deflate-iaa_r64_p5_l0_s0` (baseline) |
-
-When `--compressor all` is specified, the following configurations are tested in order (additional configs are available, commented out, in the script):
-
-| # | Config | `config_sys_zram.sh` equivalent |
-|---|--------|--------------------------------|
-| 1 (baseline) | `deflate-iaa_r64_p5_l0_s0` | `-c deflate-iaa -r 64 -p 5` |
-| 2 | `deflate-iaa-dynamic_r64_p5_l12_s64` | `-c deflate-iaa-dynamic -r 64 -p 5 -l 12 -s 64` |
-| 3 | `lz4_r1_p3_l12_s64` | `-c lz4 -r 1 -p 3 -l 12 -s 64` |
-
-The baseline config (`_l0_s0`) runs with `memory.max = init-limit`; the zram configs reserve `zram-limit` GB and run with `memory.max = init-limit − zram-limit`.
-
-## Methodology
-
-1. The script loops over the compressor configuration list (a single config, or all configs when `-c all`).
-2. For each config, `config_sys_zram.sh` (or `config_sys_zswap.sh`) is called with the config-specific parameters (`-c`, `-r`, `-p`, `-l`, `-s`, `-f`).
-3. The cgroup memory limit is derived from `--init-limit`:
-   * baseline configs (`_l0_s0`, no zram) use `memory.max = init-limit`;
-   * zram configs use `memory.max = init-limit − zram-limit`, reserving the remainder for the zram device.
-4. The script sweeps from `--instance-min` to `--instance-max` instances (stepping by `--instance-step`), running all instances under that memory limit.
-5. Per-instance throughput, aggregate throughput, p99 latency, CPU usage, and swap statistics are collected. The first sweep point (`--instance-min`) is used as the baseline for KPI comparison.
-6. Results are automatically piped through `instance_sweep_reporter.py` to produce a `.report` table per config and a combined HTML report with KPI crossing-point analysis.
-
-## Report Metrics
-
-| Metric | Description |
-|--------|-------------|
-| **Scenario** | `instances-N` where N is the configured instance count |
-| **CfgInst** | Configured (requested) number of instances |
-| **ActInst** | Actual number of instances that produced valid run logs |
-| **Peak(GiB)** | Peak memory usage (same formula as benchmark.sh) |
-| **Swap(GiB)** | Peak swap usage |
-| **Tput(KOPS)** | Average per-instance throughput |
-| **AggTput(KOPS)** | Total throughput summed across all instances |
-| **Perf%** | Performance as % of baseline (100% = no regression) |
-| **ΔTput%** | Throughput change relative to baseline |
-| **p99(ms)** | Max p99 latency across instances |
-| **KPI Crossing Point** | Interpolated instance count where performance drops below `--accept-kpi` threshold |
 
 
