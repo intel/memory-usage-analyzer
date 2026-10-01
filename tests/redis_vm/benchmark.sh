@@ -52,7 +52,7 @@ SERVER_VMS="${SERVER_VMS:-16}"                 # number of server VMs (client VM
 INSTANCES="${INSTANCES:-1}"                   # redis instances per server VM
 MEM_PER_INSTANCE_GB="${MEM_PER_INSTANCE_GB:-6}"  # RAM per redis instance; server VM RAM = INSTANCES * this
 CLIENT_MEM_GB="${CLIENT_MEM_GB:-2}"           # RAM per (unconstrained) client VM
-SERVER_VCPUS="${SERVER_VCPUS:-}"              # vCPUs per server VM (empty -> INSTANCES + 1)
+SERVER_VCPUS="${SERVER_VCPUS:-}"              # vCPUs per server VM (empty -> INSTANCES)
 CLIENT_VCPUS="${CLIENT_VCPUS:-}"              # vCPUs per client VM (empty -> INSTANCES, min 1)
 VM_DISK_GB="${VM_DISK_GB:-20}"                # overlay disk size per VM (GB)
 
@@ -67,7 +67,7 @@ COMPRESSOR="${COMPRESSOR:-all}"               # compressor profile to test, or '
 SWEEP_START="${SWEEP_START:-90}"              # first (highest) memory limit, as % of baseline peak -> smallest pressure
 SWEEP_END="${SWEEP_END:-75}"                  # last (lowest) memory limit, as % of baseline peak -> largest pressure
 SWEEP_STEP="${SWEEP_STEP:-5}"                 # % decrement between sweep steps
-REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-6}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
+REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-7}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
 MTHP="${MTHP:-}"                              # mTHP sizes, comma-separated (e.g. 64kB,128kB)
 PREFILL_TIMEOUT="${PREFILL_TIMEOUT:-600}"    # max seconds to wait for prefill to complete (0=no timeout)
 
@@ -91,11 +91,11 @@ print_usage() {
 Usage: benchmark.sh [options]
 
 Topology options:
-  --server-vms <V>          Number of server VMs (client VMs match 1:1) (default: 1)
+  --server-vms <V>          Number of server VMs (client VMs match 1:1) (default: 16)
   --instances <N>           Redis instances per server VM (default: 1)
   --mem-per-instance <GB>   RAM per redis instance; server RAM = N*this (default: 6)
   --client-mem <GB>         RAM per client VM (default: 2)
-  --server-vcpus <N>        vCPUs per server VM (default: instances + 1)
+  --server-vcpus <N>        vCPUs per server VM (default: instances)
   --client-vcpus <N>        vCPUs per client VM (default: instances)
 
 CPU planning:
@@ -117,7 +117,7 @@ Sweep / compressor:
   --sweep-end <pct>         End of memory sweep, % of baseline peak (default: 65)
   --sweep-step <pct>        Sweep step in % (default: 2)
   --mthp <sizes>            mTHP sizes, comma-separated (e.g. 64kB,128kB)
-  --threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 10)
+  --threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 7)
   --logdir, -l <path>       Output directory (default: ./logdir)
   --help, -h                Show this help
 
@@ -214,17 +214,36 @@ if (( TOTAL_VM_MEM_GB > AVAILABLE_RAM_GB )); then
     exit 1
 fi
 
-# ─── Stage dataset into images/ (generate it first with repeat_redis_file.py) ─
+# ─── Stage dataset into images/ (auto-generate with repeat_redis_file.py if missing) ─
 staged_dataset="${VM_IMAGE_DIR}/${DB_FILE}"
 if [[ ! -f "$staged_dataset" ]]; then
     dataset_src=""
     if [[ -f "${THIS_DIR}/${DB_FILE}" ]]; then dataset_src="${THIS_DIR}/${DB_FILE}";
     elif [[ -f "${REDIS_DIR}/${DB_FILE}" ]]; then dataset_src="${REDIS_DIR}/${DB_FILE}"; fi
+
+    # Not staged or present anywhere — generate it locally, mirroring
+    # tests/redis/benchmark.sh and setup_vm.sh. Resolve reps/cols from
+    # --data-reps/--data-cols or from the import_movies_<reps>r_<cols>c.csv name.
     if [[ -z "$dataset_src" ]]; then
-        echo "ERROR: dataset '${DB_FILE}' not found in ${VM_IMAGE_DIR}, ${THIS_DIR}, or ${REDIS_DIR}."
-        echo "  Generate it first, e.g.:"
-        echo "    python repeat_redis_file.py -r 10000 -c 10"
-        exit 1
+        if (( DB_FILE_EXPLICIT == 1 )); then
+            echo "ERROR: --db-file '${DB_FILE}' not found in ${VM_IMAGE_DIR}, ${THIS_DIR}, or ${REDIS_DIR}."
+            echo "  Provide an existing file, or drop --db-file to auto-generate."
+            exit 1
+        fi
+        gen_reps="$DATA_REPS"; gen_cols="$DATA_COLS"
+        if [[ ( -z "$gen_reps" || -z "$gen_cols" ) && "$DB_FILE" =~ _([0-9]+)r_([0-9]+)c\.csv$ ]]; then
+            gen_reps="${gen_reps:-${BASH_REMATCH[1]}}"; gen_cols="${gen_cols:-${BASH_REMATCH[2]}}"
+        fi
+        gen_reps="${gen_reps:-10000}"; gen_cols="${gen_cols:-10}"
+        echo "=== Dataset '${DB_FILE}' not found — generating (reps=${gen_reps}, combined_lines=${gen_cols}) ==="
+        echo "    (this can take a while for large reps/combined_lines values)"
+        ( cd "${THIS_DIR}" && python repeat_redis_file.py -r "${gen_reps}" -c "${gen_cols}" )
+        if [[ -f "${THIS_DIR}/${DB_FILE}" ]]; then
+            dataset_src="${THIS_DIR}/${DB_FILE}"
+        else
+            echo "ERROR: dataset generation did not produce '${DB_FILE}' in ${THIS_DIR}."
+            exit 1
+        fi
     fi
     mkdir -p "$VM_IMAGE_DIR"
     cp "$dataset_src" "$staged_dataset"

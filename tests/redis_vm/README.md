@@ -69,14 +69,15 @@ Server and client VMs get **disjoint host-core blocks**, pinned with `numactl`:
 
 ## Defaults
 
-- **1 server VM + 1 client VM**, **1 redis instance**, **6 GB/instance**
-- Server vCPUs = `instances + 1`; client vCPUs = `instances`
+- **16 server VMs + 16 client VMs**, **1 redis instance each**, **6 GB/instance**
+- Server vCPUs = `instances`; client vCPUs = `instances`
 - Dataset: `import_movies_10000r_10c.redis`, generated locally by the bundled
   [`repeat_redis_file.py`](repeat_redis_file.py) (`-r 10000 -c 10`) and staged
-  into the client VM images by `benchmark.sh` on first run. The client loads it
-  into the paired server once (`.redis` via `redis-cli --pipe`, `.csv` via
-  `memtier_benchmark --data-import`). If the dataset is missing, `benchmark.sh`
-  exits with guidance.
+  into the client VM images by `benchmark.sh` on first run. `benchmark.sh`
+  **auto-generates the dataset** if it is not already present (mirroring the
+  native [`tests/redis`](../redis/readme.md) benchmark), so no separate
+  generation step is required. The client loads it into the paired server once
+  (`.redis` via `redis-cli --pipe`, `.csv` via `memtier_benchmark --data-import`).
 
 ## Prerequisites
 
@@ -96,34 +97,32 @@ Server and client VMs get **disjoint host-core blocks**, pinned with `numactl`:
 
 ## Quick Start
 
-The workload runs in **three steps** — set up the VM images once, generate the
-dataset, then run the benchmark:
+The workload runs in **two steps** — set up the VM images once, then run the
+benchmark (which generates and stages the dataset automatically on first run):
 
 ```bash
 # 1. One-time VM setup (Ubuntu cloud image, kernel/initrd, memtier binary, SSH
-#    keys). Does NOT generate or stage the dataset.
+#    keys).
 ./setup_vm.sh
 
-# 2. Generate the default dataset (import_movies_10000r_10c.redis)
-python repeat_redis_file.py -r 10000 -c 10
-
-# 3. Run the benchmark — stages the dataset into the VMs, boots them, and runs
-#    the baseline memory estimation + compression sweep
+# 2. Run the benchmark — auto-generates the dataset if missing, stages it into
+#    the VMs, boots them, and runs the baseline memory estimation + compression
+#    sweep
 ./benchmark.sh
 ```
 
 ### Default run
 
-With no flags the benchmark uses the defaults — **1 server VM + 1 client VM, 1
-redis instance at 6 GB**, all built-in compressors, zswap:
+With no flags the benchmark uses the defaults — **16 server VMs + 16 client VMs,
+1 redis instance each at 6 GB**, all built-in compressors, zswap (this needs a
+large host; lower `--server-vms` on smaller machines):
 
 ```bash
-./setup_vm.sh                              # 1. one-time image setup
-python repeat_redis_file.py -r 10000 -c 10 # 2. generate the dataset
-./benchmark.sh                             # 3. run (1 server × 1 instance × 6 GB)
+./setup_vm.sh   # 1. one-time image setup
+./benchmark.sh  # 2. run (auto-generates dataset; 16 servers × 1 instance × 6 GB)
 ```
 
-Scale up by passing the topology flags to `benchmark.sh`, e.g. 2 server VMs each
+Change the topology by passing the flags to `benchmark.sh`, e.g. 2 server VMs each
 running 3 instances at 6 GB (2 paired client VMs):
 
 ```bash
@@ -151,9 +150,9 @@ Example: `--server-vms 10 --instances 10` at the default 6 GB/instance needs
 requiring roughly **≥ 690 GB** host RAM. Lower `--mem-per-instance`,
 `--instances`, or `--server-vms` if you hit the "exceeds available host RAM" error.
 
-**CPU pinning:** server VMs get `instances + 1` vCPUs, client VMs get `instances`
+**CPU pinning:** server VMs get `instances` vCPUs, client VMs get `instances`
 (min 1). With the default `spread-nodes` policy the VMs want
-`server_vms × (instances+1) + client_vms × instances` disjoint host cores for
+`server_vms × instances + client_vms × instances` disjoint host cores for
 clean pinning; with fewer cores the later VMs run unpinned (they still run, but
 contend for cores). Use `--core-policy siblings-first` or explicit
 `--server-cpusets` / `--client-cpusets` to control placement.
@@ -162,7 +161,7 @@ contend for cores). Use `--core-policy siblings-first` or explicit
 
 | Script | Purpose |
 |--------|---------|
-| `setup_vm.sh` | One-time setup: download cloud image, extract kernel/initrd, stage the memtier binary, generate SSH keys + base overlays/cloud-init. Does **not** touch the dataset — generate it separately; `benchmark.sh` stages it |
+| `setup_vm.sh` | One-time setup: download cloud image, extract kernel/initrd, stage the memtier binary, generate SSH keys + base overlays/cloud-init, and generate the dataset. `benchmark.sh` also auto-generates it on first run if still missing, then stages it |
 | `benchmark.sh` | Main orchestrator: boot servers (in cgroup) + clients (unconstrained), start empty server instances, prefill them from the clients, baseline run, sweep server memory limits, collect results |
 | `vm_lib.sh` | Role-aware VM lifecycle library (start/stop, networking, CPU plan, cloud-init, workload deployment, pre-flight) |
 | `vm_ctl.sh` | Utility: start/stop/status/ssh into server or client VMs |
@@ -177,12 +176,12 @@ The HTML plot reuses the native Redis plotter
 ## How It Works
 
 1. **Setup** (`setup_vm.sh`): Creates one Ubuntu cloud-init base image (installs
-   `redis-server`, `redis-tools`, and the memtier runtime libraries) and stages
-   the host-built `memtier_benchmark` binary. The dataset is **not** handled here
-   — generate it separately (step 2) and `benchmark.sh` stages it into the images
-   directory on first run. `benchmark.sh` (re)creates the per-VM overlays and
-   cloud-init ISOs for `V` server and `V` client VMs for whatever topology you
-   pass it.
+   `redis-server`, `redis-tools`, and the memtier runtime libraries), stages
+   the host-built `memtier_benchmark` binary, and generates the dataset.
+   `benchmark.sh` also auto-generates the dataset on first run if it is still
+   missing, then stages it into the images directory. `benchmark.sh` (re)creates
+   the per-VM overlays and cloud-init ISOs for `V` server and `V` client VMs for
+   whatever topology you pass it.
 
 2. **Benchmark** (`benchmark.sh`):
    - Computes the disjoint server/client CPU plan
@@ -224,19 +223,19 @@ clients under pressure.
 --db-file <name>        Redis dataset file (default: import_movies_10000r_10c.redis)
 ```
 
-`setup_vm.sh` does **not** generate or stage the dataset. Generate it separately
-with the bundled generator (`python repeat_redis_file.py -r 10000 -c 10`);
-`benchmark.sh` stages the resulting file into the VM images on first run. Use
-`--db-file` if you generated a differently named dataset.
+`setup_vm.sh` generates the dataset with the bundled generator
+(`python repeat_redis_file.py -r 10000 -c 10`); `benchmark.sh` auto-generates it
+too on first run if it is missing, then stages the file into the VM images. Use
+`--db-file` to point at a differently named dataset.
 
 ### benchmark.sh
 
 ```
---server-vms <V>          Number of server VMs (client VMs match 1:1) (default: 1)
+--server-vms <V>          Number of server VMs (client VMs match 1:1) (default: 16)
 --instances <N>           Redis instances per server VM (default: 1)
 --mem-per-instance <GB>   RAM per redis instance; server RAM = N*this (default: 6)
 --client-mem <GB>         RAM per client VM (default: 2)
---server-vcpus <N>        vCPUs per server VM (default: instances + 1)
+--server-vcpus <N>        vCPUs per server VM (default: instances)
 --client-vcpus <N>        vCPUs per client VM (default: instances)
 --core-policy <p>         spread-nodes | siblings-first (default: spread-nodes)
 --server-cpusets <map>    Explicit per-server host cpusets, ';'-separated (e.g. "0-2;3-5")
@@ -252,7 +251,7 @@ with the bundled generator (`python repeat_redis_file.py -r 10000 -c 10`);
 --sweep-end <pct>         Sweep end,   % of baseline peak (default: 75)
 --sweep-step <pct>        Sweep step in % (default: 5)
 --mthp <sizes>            mTHP sizes, comma-separated (e.g. 64kB,128kB)
---threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 6)
+--threshold, -t <pct>     Throughput regression threshold to stop sweep (default: 7)
 --logdir, -l <path>       Output directory (default: ./logdir)
 ```
 
@@ -344,7 +343,7 @@ Sweep options:
   --instances <N>           Redis instances per server VM (default: 1)
   --mem-per-instance <GB>   RAM per redis instance; server RAM = N*this (default: 6)
   --client-mem <GB>         RAM per client VM (default: 2)
-  --server-vcpus <N>        vCPUs per server VM (default: instances + 1)
+  --server-vcpus <N>        vCPUs per server VM (default: instances)
   --client-vcpus <N>        vCPUs per client VM (default: instances)
 
 Memory split (mirrors instance_sweep_script.sh):
@@ -362,8 +361,8 @@ CPU planning:
 Dataset / workload:
   --db-file <name>          Redis dataset file. Overrides the auto-generated
                             dataset from --reps/--combined-lines
-  --reps, -r <N>            Dataset repetitions for generation (default: 10000)
-  --combined-lines <N>      Lines combined per entry for generation (default: 10)
+  --reps, -r <N>            Dataset repetitions for generation (default: 4000)
+  --combined-lines <N>      Lines combined per entry for generation (default: 3)
   --duration <sec>          memtier run duration per scenario (default: 120)
 
 Compressor:

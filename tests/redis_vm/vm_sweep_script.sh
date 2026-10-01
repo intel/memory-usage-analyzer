@@ -38,7 +38,7 @@ VM_LIST="${VM_LIST:-}"                          # explicit sweep points (space/c
 INSTANCES="${INSTANCES:-1}"                     # redis instances per server VM (fixed for now)
 MEM_PER_INSTANCE_GB="${MEM_PER_INSTANCE_GB:-6}" # RAM per redis instance; server VM RAM = INSTANCES * this
 CLIENT_MEM_GB="${CLIENT_MEM_GB:-2}"             # RAM per (unconstrained) client VM
-SERVER_VCPUS="${SERVER_VCPUS:-}"                # vCPUs per server VM (empty -> INSTANCES + 1)
+SERVER_VCPUS="${SERVER_VCPUS:-}"                # vCPUs per server VM (empty -> INSTANCES)
 CLIENT_VCPUS="${CLIENT_VCPUS:-}"                # vCPUs per client VM (empty -> INSTANCES, min 1)
 VM_DISK_GB="${VM_DISK_GB:-20}"                  # overlay disk size per VM (GB)
 
@@ -53,7 +53,7 @@ DURATION="${DURATION:-120}"                     # memtier run duration per scena
 SWAP_MODE="${SWAP_MODE:-zswap}"                 # compressed-swap backend: zswap or zram
 COMPRESSOR="${COMPRESSOR:-all}"                 # compressor profile to test, or 'all'
 ACCEPT_KPI="${ACCEPT_KPI:-95}"                  # acceptable KPI threshold % (reporter crossing point)
-REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-10}" # % per-instance throughput drop vs first sweep point that stops the sweep for a compressor
+REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-7}" # % per-instance throughput drop vs first sweep point that stops the sweep for a compressor
 CORE_FREQUENCY="${CORE_FREQUENCY:-}"            # core frequency MHz (passed to config_sys_*)
 MTHP="${MTHP:-}"                                # mTHP sizes, comma-separated (e.g. 64kB,128kB)
 PREFILL_TIMEOUT="${PREFILL_TIMEOUT:-600}"       # max seconds to wait for prefill (0=no timeout)
@@ -85,7 +85,7 @@ Sweep options:
   --instances <N>           Redis instances per server VM (default: 1)
   --mem-per-instance <GB>   RAM per redis instance; server RAM = N*this (default: 6)
   --client-mem <GB>         RAM per client VM (default: 2)
-  --server-vcpus <N>        vCPUs per server VM (default: instances + 1)
+  --server-vcpus <N>        vCPUs per server VM (default: instances)
   --client-vcpus <N>        vCPUs per client VM (default: instances)
 
 Memory split (mirrors instance_sweep_script.sh):
@@ -103,8 +103,8 @@ CPU planning:
 Dataset / workload:
   --db-file <name>          Redis dataset file. Overrides the auto-generated
                             dataset from --reps/--combined-lines
-  --reps, -r <N>            Dataset repetitions for generation (default: 10000)
-  --combined-lines <N>      Lines combined per entry for generation (default: 10)
+  --reps, -r <N>            Dataset repetitions for generation (default: 4000)
+  --combined-lines <N>      Lines combined per entry for generation (default: 3)
   --duration <sec>          memtier run duration per scenario (default: 120)
 
 Compressor:
@@ -226,16 +226,17 @@ if (( PHYS_PEAK_GB > AVAILABLE_RAM_GB )); then
     exit 1
 fi
 
-# ─── Stage dataset into images/ (generate it first with repeat_redis_file.py) ─
+# ─── Stage dataset into images/ ──────────────────────────────────────────────
+# Derived datasets are already generated above; this only errors for an explicit
+# --db-file that is missing everywhere (that name can't be auto-generated).
 staged_dataset="${VM_IMAGE_DIR}/${DB_FILE}"
 if [[ ! -f "$staged_dataset" ]]; then
     dataset_src=""
     if [[ -f "${THIS_DIR}/${DB_FILE}" ]]; then dataset_src="${THIS_DIR}/${DB_FILE}";
     elif [[ -f "${REDIS_DIR}/${DB_FILE}" ]]; then dataset_src="${REDIS_DIR}/${DB_FILE}"; fi
     if [[ -z "$dataset_src" ]]; then
-        echo "ERROR: dataset '${DB_FILE}' not found in ${VM_IMAGE_DIR}, ${THIS_DIR}, or ${REDIS_DIR}."
-        echo "  Generate it first, e.g.:"
-        echo "    python repeat_redis_file.py -r ${REPS} -c ${COMBINED_LINES}"
+        echo "ERROR: --db-file '${DB_FILE}' not found in ${VM_IMAGE_DIR}, ${THIS_DIR}, or ${REDIS_DIR}."
+        echo "  Provide an existing file, or drop --db-file to auto-generate from --reps/--combined-lines."
         exit 1
     fi
     mkdir -p "$VM_IMAGE_DIR"

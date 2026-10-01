@@ -453,7 +453,6 @@ if [ "$compressor" == "all" ];then
        compressor_list=("lz4_r1_p3" "zstd_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r16_p3" )
    else
        compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
-       #compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")
    fi
 else
    compressor_list=( "$compressor")
