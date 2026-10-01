@@ -450,10 +450,7 @@ echo "Saved run_config.json"
 if [ "$compressor" == "all" ];then
    # Check if this is a custom kernel with reclaim-batchsize support.
    if [ -f /proc/sys/vm/reclaim-batchsize ]; then
-
-       #compressor_list=("zstd_r1_p3" "lz4_r1_p3"  "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r64_p5")
-       compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa_r64_p5" "deflate-iaa-dynamic_r1_p3" "deflate-iaa-dynamic_r64_p5" )
-       #compressor_list=("zstd_r1_p3" "lz4_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r1_p3" )
+       compressor_list=("lz4_r1_p3" "zstd_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r16_p3" )
    else
        compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
        #compressor_list=("zstd_r1_p3" "lzo_r1_p3" "deflate-iaa_r1_p3")

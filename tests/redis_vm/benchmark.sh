@@ -64,8 +64,8 @@ DATA_INPUT="${DATA_INPUT:-import_movies.redis}"  # base input file for dataset n
 DURATION="${DURATION:-120}"                   # memtier run duration per scenario (seconds)
 SWAP_MODE="${SWAP_MODE:-zswap}"               # compressed-swap backend: zswap or zram
 COMPRESSOR="${COMPRESSOR:-all}"               # compressor profile to test, or 'all' for the built-in list
-SWEEP_START="${SWEEP_START:-90}"              # first memory limit, as % of baseline peak
-SWEEP_END="${SWEEP_END:-50}"                  # last memory limit, as % of baseline peak
+SWEEP_START="${SWEEP_START:-90}"              # first (highest) memory limit, as % of baseline peak -> smallest pressure
+SWEEP_END="${SWEEP_END:-75}"                  # last (lowest) memory limit, as % of baseline peak -> largest pressure
 SWEEP_STEP="${SWEEP_STEP:-5}"                 # % decrement between sweep steps
 REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-6}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
 MTHP="${MTHP:-}"                              # mTHP sizes, comma-separated (e.g. 64kB,128kB)
@@ -568,11 +568,7 @@ ensure_cidata_all_vms
 declare -a compressor_list=()
 if [[ "$COMPRESSOR" == "all" ]]; then
     if [ -f /proc/sys/vm/reclaim-batchsize ]; then
-        #compressor_list=("deflate-iaa-dynamic_r32_p5" "deflate-iaa-dynamic_r64_p5")
-        #compressor_list=("lz4_r1_p3" "deflate-iaa-dynamic_r1_p3" "defalte-iaa-dynamic_r8_p3" "defalte-iaa-dynamic_r16_p3" "zstd_r1_p3")
-        #compressor_list=("lz4_r1_p3" "defalte-iaa-dynamic_r8_p3" "zstd_r1_p3")
-        compressor_list=("lz4_r1_p3" "zstd_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r8_p3" "deflate-iaa-dynamic_r16_p3" "deflate-iaa-dynamic_r32_p3" "deflate-iaa-dynamic_r64_p5" )
-        #compressor_list=("lz4_r1_p3" "zstd_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r8_p3" )
+        compressor_list=("lz4_r1_p3" "zstd_r1_p3" "deflate-iaa_r1_p3" "deflate-iaa-dynamic_r16_p3" )
     else
         compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
     fi
