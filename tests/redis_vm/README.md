@@ -168,6 +168,8 @@ contend for cores). Use `--core-policy siblings-first` or explicit
 | `vm_ctl.sh` | Utility: start/stop/status/ssh into server or client VMs |
 | `report.py` | Parser + text reporter for the benchmark log lines |
 | `repeat_redis_file.py` | Dataset generator (bundled from `tests/redis`) |
+| `vm_sweep_script.sh` | VM-count sweep orchestrator: sweeps the number of server VMs under a fixed cgroup memory limit for each compressor, emitting per-config `.report` tables via `vm_sweep_reporter.py` |
+| `vm_sweep_reporter.py` | Parser + HTML/text reporter for the VM-count sweep (KPI crossing-point analysis) |
 
 The HTML plot reuses the native Redis plotter
 [`../redis/report_plot.py`](../redis/report_plot.py).
@@ -308,3 +310,87 @@ estimation for the Redis workload; compare it against the native
   OOM-kills redis during prefill. Lower the generation `-r` to shrink the dataset
   or raise `--mem-per-instance` for more sweep headroom.
 - The cgroup used is `/sys/fs/cgroup/redisbench_vm`.
+
+## VM-Count Sweep
+
+While `benchmark.sh` sweeps the *memory limit* for a fixed number of server VMs,
+`vm_sweep_script.sh` sweeps the *number of server VMs* (client VMs match 1:1)
+under a **fixed** host cgroup memory limit. Redis instances per VM (`--instances`)
+are held constant, so growing the VM count raises guest memory pressure
+(compression/swap) at a constant memory ceiling. This finds the maximum number of
+server VMs that fit within a memory budget before performance drops below an
+acceptable KPI threshold.
+
+All VMs are provisioned once at the largest sweep point; each sweep point boots
+the first N of them. Only the server VMs are placed in the pressured cgroup;
+client VMs run unconstrained. Results are piped through `vm_sweep_reporter.py`
+to produce per-config `.report` tables and a combined HTML report with
+KPI crossing-point analysis — there is no need to run the reporter separately.
+
+The `--init-limit` physical budget is split between the server cgroup and zram
+using the `_l<mem-limit>_s<disk-size>` fields of the compressor config name,
+mirroring [`../redis/instance_sweep_script.sh`](../redis/instance_sweep_script.sh).
+
+### Usage
+
+```
+Usage: vm_sweep_script.sh [options]
+
+Sweep options:
+  --vm-list <points>        Server-VM counts to sweep (space/comma separated,
+                            strictly ascending). Empty -> swap-mode default:
+                              zswap: 10,15,16,17,18,19,20,21,22,23,24,25
+                              zram:  10,15,16,18,20,22,24,26,28,30
+  --instances <N>           Redis instances per server VM (default: 1)
+  --mem-per-instance <GB>   RAM per redis instance; server RAM = N*this (default: 6)
+  --client-mem <GB>         RAM per client VM (default: 2)
+  --server-vcpus <N>        vCPUs per server VM (default: instances + 1)
+  --client-vcpus <N>        vCPUs per client VM (default: instances)
+
+Memory split (mirrors instance_sweep_script.sh):
+  --init-limit <GB>         Total physical memory budget (default: 64)
+                            cgroup memory.max = init-limit - zram-limit(l),
+                            zram = zram-limit(l)
+  --zram-limit <GB>         Zram physical mem limit (CLI override for _l in config name)
+  --zram-disksize <GB>      Zram virtual disk size (CLI override for _s in config name)
+
+CPU planning:
+  --core-policy <p>         spread-nodes | siblings-first (default: spread-nodes)
+  --server-cpusets <map>    Explicit per-server host cpusets, ';'-separated
+  --client-cpusets <map>    Explicit per-client host cpusets
+
+Dataset / workload:
+  --db-file <name>          Redis dataset file. Overrides the auto-generated
+                            dataset from --reps/--combined-lines
+  --reps, -r <N>            Dataset repetitions for generation (default: 10000)
+  --combined-lines <N>      Lines combined per entry for generation (default: 10)
+  --duration <sec>          memtier run duration per scenario (default: 120)
+
+Compressor:
+  --swap-mode <mode>        zswap or zram (default: zswap)
+  --compressor <name>       Compressor profile or 'all' (default: all)
+  --frequency, -f <MHz>     Core frequency in MHz
+  --mthp <sizes>            mTHP sizes, comma-separated (e.g. 64kB,128kB)
+  --accept-kpi <pct>        Acceptable KPI threshold % (default: 95)
+  --threshold, -t <pct>     Per-instance throughput drop vs the first (lowest-VM)
+                            sweep point that stops the sweep for a compressor (default: 7)
+  --logdir, -l <path>       Output directory (default: ./logdir_vm_sweep)
+  --help, -h                Show this help
+```
+
+### Report Metrics
+
+| Metric | Description |
+|--------|-------------|
+| **Scenario** | `vms-V` where V is the server-VM count for the sweep point |
+| **CfgVMs / ActVMs** | Configured vs. actual (booted) server-VM count |
+| **CfgInst / ActInst** | Configured vs. actual redis instances that produced valid results |
+| **Peak(GiB)** | Peak server-cgroup memory usage |
+| **Swap(GiB) / Swap%** | Peak swap usage and its share of peak memory |
+| **CR(x)** | Compression ratio |
+| **Tput(KOPS)** | Average per-instance throughput |
+| **AggTput** | Total throughput summed across all instances |
+| **Perf%** | Performance as % of baseline (first/lowest-VM sweep point) |
+| **ΔTput%** | Throughput change relative to baseline |
+| **p99(ms)** | Max p99 latency across instances |
+| **KPI Crossing Point** | Interpolated VM count where performance drops below `--accept-kpi` |
