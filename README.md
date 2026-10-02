@@ -53,6 +53,48 @@ sudo ./tests/scripts/install_dependencies.sh
 
 * [Example workload walk-through](tests/example/README.md)
 
+## Debugging
+
+The scripts in [tests/scripts/](tests/scripts/) below are **not** part of the
+normal install or benchmark flow. The standard setup and workload scripts
+already configure IAA and the Python environment automatically. These helpers
+are kept only for manual troubleshooting when a run misbehaves.
+
+### Verify IAA setup (`verify_iaa_setup.sh`)
+
+Confirms that the Intel® In-Memory Analytics Accelerator (IAA) is ready to use. It checks the kernel version (>= 6.8), the IAA PCI devices, the `iaa_crypto` module, the per-device state, and the registered `deflate-iaa` crypto algorithms. If the crypto module is not loaded, it first tries `enable_iaa.sh`. Must be run as root.
+
+```bash
+# Run the checks
+sudo ./tests/scripts/verify_iaa_setup.sh
+
+# Verbose output: list devices and modules
+sudo ./tests/scripts/verify_iaa_setup.sh -v
+```
+
+It prints a PASS/WARN/FAIL summary and exits non-zero if any check fails. Run it to confirm IAA is usable before using the `deflate-iaa` compressor profiles.
+
+### Python environment fallback (`setup_penv.sh`)
+
+A sourced helper that creates (or reuses) a workload-local virtualenv named `penv`, installs this repo's Python dependencies (matplotlib, bokeh, pandas, etc.) from `setup.py` into it, and sets `PYTHON` to that interpreter. Use it when the reporting or plotting steps fail with missing Python modules and you want a self-contained interpreter instead of the system one.
+
+```bash
+# From a workload directory (e.g. tests/redis):
+source tests/scripts/setup_penv.sh
+setup_penv "$(pwd)"              # creates ./penv and sets $PYTHON
+"$PYTHON" report_plot.py ...     # run the reporter with the venv interpreter
+```
+
+### Manual dependency install fallback
+
+If `./tests/scripts/install_dependencies.sh` fails to install the Python dependencies and you cannot resolve the issue, create a virtualenv with Python 3.11 or newer and install this repo in editable mode instead:
+
+```bash
+python3.11 -m venv penv
+source penv/bin/activate
+pip install -e memory-usage-analyzer
+```
+
 ## License
 * All code is licensed under BSD 3-Clause
 
