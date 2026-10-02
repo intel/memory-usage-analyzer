@@ -4,11 +4,10 @@ This is a charaterization framework to benchamark zswap with IAA using Redis and
 
 # Setting up Environment
 
-Complete the general setup (hardware, kernel, Python, virtual environment, and package installation) described in the [README](../../README.md#requirements).
+Complete the general setup (hardware, kernel, and Python) described in the [README](../../README.md#requirements). The setup script below installs the pinned Python environment for you via `install_dependencies.sh`, so no manual virtual environment is required.
 
-* Install dependencies, Redis server and memtier-benchmark. 
+* Install dependencies, Redis server and memtier-benchmark. `setup_redis.sh` runs `install_dependencies.sh` for you, so there is no need to run it separately.
   ```
-  [sudo] ../scripts/install_dependencies.sh
   [sudo] ./setup_redis.sh
   ```
 
@@ -38,13 +37,18 @@ Named options:
                                       Supports: lzo, lz4, zstd, deflate-iaa, deflate-iaa-dynamic
                                       Append _r<N>_p<N> to set reclaim-batchsize and
                                       page-cluster (e.g. deflate-iaa_r64_p5)
+  --reps, -r <num>                    Dataset repetitions for generation (default: 10000)
+  --combined-lines <num>              Lines combined per entry for generation (default: 10)
   --db-file, -d <path>                Input DB file, .csv or .redis (default: import_movies_10000r_10c.csv)
+                                      Overrides the dataset auto-generated from --reps/--combined-lines
   --server-cpus <num>                 Cores per redis server instance (default: 1)
   --client-cpus <num>                 Cores per memtier client instance (default: 1)
   --client-socket-policy <auto|same>  Client socket policy (default: auto)
   --core-policy <siblings-first|spread-nodes>
                                       Core selection policy (default: spread-nodes)
   --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
+  --mthp <sizes>                      mTHP sizes, comma-separated (e.g. 64kB,128kB)
+  --threshold, -t <pct>               Throughput regression threshold to stop sweep (default: 7)
   --logdir, -l <path>                 Output log directory (default: ./logdir)
   --help, -h                          Show this help
 
@@ -101,6 +105,7 @@ In **zswap** mode, `Peak(GiB)` equals `CgroupPeak(GiB)` because the zswap compre
 | **ΔRunSysTot** | `RunSysTot% − baseline_RunSysTot%` | Same |
 | **CfgInst** | `no_of_servers` (requested instances) | Same |
 | **ActInst** | Count of instances that produced valid run logs | Same |
+
 
 # Instance Sweep
 

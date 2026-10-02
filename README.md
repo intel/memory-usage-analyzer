@@ -39,16 +39,50 @@ Intel® Memory Usage Analyzer can
 
 ## Install
 
-Clone and install
+Clone the repository and run the dependency installer. It installs the OS
+packages, accel-config, the pinned Python, and this repository (editable
+install inside an isolated virtualenv), then puts the helper scripts on PATH.
 
 ```bash
 git clone https://github.com/intel/memory-usage-analyzer.git
-pip install -e memory-usage-analyzer
+cd memory-usage-analyzer
+sudo ./tests/scripts/install_dependencies.sh
 ```
 
 ## Documentation
 
 * [Example workload walk-through](tests/example/README.md)
+
+## Debugging
+
+The scripts in [tests/scripts/](tests/scripts/) below are **not** part of the
+normal install or benchmark flow. The standard setup and workload scripts
+already configure IAA and the Python environment automatically. These helpers
+are kept only for manual troubleshooting when a run misbehaves.
+
+### Verify IAA setup (`verify_iaa_setup.sh`)
+
+Confirms that the Intel® In-Memory Analytics Accelerator (IAA) is ready to use. It checks the kernel version (>= 6.8), the IAA PCI devices, the `iaa_crypto` module, the per-device state, and the registered `deflate-iaa` crypto algorithms. If the crypto module is not loaded, it first tries `enable_iaa.sh`. Must be run as root.
+
+```bash
+# Run the checks
+sudo ./tests/scripts/verify_iaa_setup.sh
+
+# Verbose output: list devices and modules
+sudo ./tests/scripts/verify_iaa_setup.sh -v
+```
+
+It prints a PASS/WARN/FAIL summary and exits non-zero if any check fails. Run it to confirm IAA is usable before using the `deflate-iaa` compressor profiles.
+
+### Manual dependency install fallback
+
+If `./tests/scripts/install_dependencies.sh` fails to install the Python dependencies and you cannot resolve the issue, create a virtualenv with Python 3.11 or newer and install this repo in editable mode instead:
+
+```bash
+python3.11 -m venv penv
+source penv/bin/activate
+pip install -e memory-usage-analyzer
+```
 
 ## License
 * All code is licensed under BSD 3-Clause

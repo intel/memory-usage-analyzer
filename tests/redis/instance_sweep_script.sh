@@ -22,7 +22,7 @@ redis_server_cpus_per_instance=1
 memtier_cpus_per_instance=1
 client_socket_policy="auto"
 server_overflow_policy="siblings-first"
-swap_mode="zram"
+swap_mode="zswap"
 
 init_limit=64
 
@@ -50,7 +50,7 @@ Named options:
   --server-cpus <num>                 Cores per redis server instance
   --client-cpus <num>                 Cores per memtier client instance
   --client-socket-policy <auto|same>  Client socket policy
-  --swap-mode, -m <zswap|zram>        Swap mode (default: zram)
+  --swap-mode, -m <zswap|zram>        Swap mode (default: zswap)
   --instance-min <num>                Min number of instances (default: 40)
   --instance-max <num>                Max number of instances (default: 65)
   --instance-step <num>               Step size for instance sweep (default: 5)
@@ -133,6 +133,46 @@ rm -f *.html
 
 mkdir -p "${LOGDIR}"
 mkdir -p "${REDIS_CONFIGS}"
+
+# Emit run_config.json for instance_sweep_reporter.py's System Configuration
+# section. Uses the shared collect_sysinfo.sh helper so host details (incl.
+# BIOS) match the other redis benchmarks.
+write_run_config() {
+    local outdir="$1"
+    source "${THIS_DIR}/../scripts/collect_sysinfo.sh"
+    collect_sysinfo
+
+    cat > "${outdir}/run_config.json" <<EOF
+{
+  "date": "$(date -Iseconds)",
+  "hostname": "$(hostname)",
+  "kernel": "$(uname -r)",
+  "cpu_model": "${SYSINFO_CPU_MODEL}",
+  "cpu_sockets": "${SYSINFO_CPU_SOCKETS:-0}",
+  "cores_per_socket": "${SYSINFO_CORES_PER_SOCKET:-0}",
+  "threads_per_core": "${SYSINFO_THREADS_PER_CORE:-0}",
+  "total_cpus": "${SYSINFO_TOTAL_CPUS:-0}",
+  "numa_nodes": "${SYSINFO_NUMA_NODES:-0}",
+  "host_mem_total_gb": "${SYSINFO_MEM_TOTAL_GB}",
+  "bios_version": "${SYSINFO_BIOS_VERSION}",
+  "bios_date": "${SYSINFO_BIOS_DATE}",
+  "db_file": "${db_file}",
+  "swap_mode": "${swap_mode}",
+  "requested_compressor": "${compressor}",
+  "init_limit_gb": "${init_limit}",
+  "instance_min": "${instance_min}",
+  "instance_max": "${instance_max}",
+  "instance_step": "${instance_step}",
+  "accept_kpi_pct": "${accept_kpi}",
+  "server_cpus_per_instance": "${redis_server_cpus_per_instance}",
+  "client_cpus_per_instance": "${memtier_cpus_per_instance}",
+  "core_frequency_mhz": "${core_frequency}",
+  "phase_timeout_sec": "${phase_timeout}",
+  "oom_kill_checks": "${oom_kill_checks}"
+}
+EOF
+}
+write_run_config "${LOGDIR}"
 
 # Reserve the 2 CPUs for system level activites
 redis_server_cpu_start=0

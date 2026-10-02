@@ -10,9 +10,10 @@
 
 VERIFY_COMPRESS_PATH="/sys/bus/dsa/drivers/crypto/verify_compress"
 
-iax_dev_id="0cfe"
+iax_dev_id="0cfe|1216"
 # Direct IAA device detection using lspci
-num_iaa=$(lspci -d:${iax_dev_id} | wc -l)
+num_iaa=$(lspci -Dnn | grep -Ec "${iax_dev_id}")
+echo "Detected ${num_iaa} IAA device(s)"
 sockets=$(lscpu | grep Socket | awk '{print $2}')
 [[ $verbose == 1 ]] && echo "Found ${num_iaa} instances in ${sockets} sockets(s)"
 
@@ -25,7 +26,7 @@ mode="dedicated"
 wq_type="kernel"
 iaa_crypto_mode="sync"
 verify_compress=0
-iaa_engines=8
+iaa_engines=""
 iaa_wqs=2
 iaa_global_queues=1
 iaa_global_consec_descs=1
@@ -59,6 +60,10 @@ while [[ $# -gt 0 ]]; do
             iaa_wqs="$2"
             shift 2
             ;;
+        -e)
+            iaa_engines="$2"
+            shift 2
+            ;;
         -v)
             verbose=1
             shift
@@ -76,18 +81,24 @@ while [[ $# -gt 0 ]]; do
             distribute_decomps="$2"
             shift 2
             ;;
+        -m)
+            iaa_crypto_mode="$2"
+            shift 2
+            ;;
         -F|--force)
             force_reconfig=1
             shift
             ;;
         -h)
-            echo "Usage: $0 [-d <device_count>][-q <wq_per_device>][-v][-c][--dc Y|N][--dd Y|N][-F]"
+            echo "Usage: $0 [-d <device_count>][-q <wq_per_device>][-e <engine_count>][-v][-c][--dc Y|N][--dd Y|N][-m sync|async|hybrid][-F]"
             echo "       -d  - number of devices per socket (default: ${device_num_per_socket})"
             echo "       -q  - number of WQs per device (default: ${iaa_wqs})"
+            echo "       -e  - number of engines per device (default: maximum available)"
             echo "       -v  - verbose mode"
             echo "       -c  - enable verify compress"
             echo "       --dc Y|N - distribute compression operations (default: Y)"
             echo "       --dd Y|N - distribute decompression operations (default: N)"
+            echo "       -m  - IAA crypto mode (default: ${iaa_crypto_mode})"
             echo "       -F  - force teardown+reconfigure even if IAA is already crypto-bound"
             echo "             (unsafe on kernels with the idxd EVL bug, e.g. stock Ubuntu 6.8)"
             echo "       -h  - help"
@@ -102,13 +113,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -n $iaa_engines && ! $iaa_engines =~ ^[1-9][0-9]*$ ]]; then
+    handle_error "engine count must be a positive integer: ${iaa_engines}"
+fi
+
 LOG="configure_iaa.log"
 
-# Update wq_size based on number of wqs
-wq_size=$(( 128 / iaa_wqs ))
-
 # Take care of the enumeration, if DSA is enabled.
-dsa=`lspci -Dnn | grep -c 0b25`
+dsa=$(lspci -Dnn | grep -Ec '0b25|1212')
 # Set enumeration parameters for iax devices
 first=0
 step=1
@@ -225,9 +237,18 @@ for ((i = ${start}; i < ${end}; i += ${step})); do
 
     [[ $verbose == 1 ]] && echo "Configuring iaa$i on socket ${socket}"
 
-    for ((j = 0; j < ${iaa_engines}; j += 1)); do
+    max_engines=$(<"/sys/bus/dsa/devices/iax${i}/max_engines") || handle_error "could not read maximum engine count for iax${i}"
+    [[ $max_engines =~ ^[1-9][0-9]*$ ]] || handle_error "invalid maximum engine count for iax${i}: ${max_engines}"
+    device_engines=${iaa_engines:-${max_engines}}
+    [[ $device_engines -le $max_engines ]] || handle_error "requested ${device_engines} engines for iax${i}, but only ${max_engines} are available"
+    max_wq_size=$(<"/sys/bus/dsa/devices/iax${i}/max_work_queues_size") || handle_error "could not read maximum WQ size for iax${i}"
+    wq_size=$(( max_wq_size / iaa_wqs ))
+    [[ $wq_size -gt 0 ]] || handle_error "maximum WQ size for iax${i} is too small for ${iaa_wqs} WQs"
+
+    for ((j = 0; j < ${device_engines}; j += 1)); do
         cmd="accel-config config-engine iax${i}/engine${i}.${j} --group-id=0"
-        [[ $verbose == 1 ]] && echo $cmd; eval $cmd
+        [[ $verbose == 1 ]] && echo $cmd
+        eval $cmd || handle_error "failed to configure engine${i}.${j}"
     done
 
     # Config WQs
@@ -265,4 +286,5 @@ total_devices=$(accel-config list | grep -c '"dev":"iax')
 total_wqs=$(accel-config list | grep -c '"dev":"wq[0-9]*\.[0-9]*"')
 echo "Number of IAA devices per socket: $(( total_devices / sockets ))"
 [ ${total_devices} -gt 0 ] && echo "Work queues per IAA device: $(( total_wqs / total_devices ))" || echo "Work queues per IAA device: 0"
+echo "Engines per IAA device: ${device_engines:-0}"
 report_iaa_algorithms
