@@ -543,10 +543,9 @@ if [[ "$compressor" == "all" ]]; then
     if [[ -f /proc/sys/vm/reclaim-batchsize ]]; then
         compressor_list=(
             "deflate-iaa_r64_p5_l0_s0"
-            #"deflate-iaa_r64_p5_l12_s64"
-            #"deflate-iaa-dynamic_r32_p3_l12_s64"
+            "deflate-iaa_r64_p5_l12_s64"
             "deflate-iaa-dynamic_r64_p5_l12_s64"
-            #"zstd_r1_p3_l12_s64"
+            "zstd_r1_p3_l12_s64"
             "lz4_r1_p3_l12_s64"
         )
     else
