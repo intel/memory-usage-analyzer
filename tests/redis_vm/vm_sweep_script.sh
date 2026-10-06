@@ -673,7 +673,7 @@ if [[ "$COMPRESSOR" == "all" ]]; then
             "lz4_r1_p3_l12_s64"
         )
     else
-        compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3" "zstd_r1_p3" "lz4_r1_p3")
+        compressor_list=("lzo_r1_p3" "deflate-iaa_r1_p3")
     fi
 else
     compressor_list=("$COMPRESSOR")
