@@ -26,8 +26,9 @@ swap_mode="zswap"
 
 init_limit=64
 
-instance_min=40
-instance_max=65
+# Run a single instance-sweep data point at 35 instances across all compressors.
+instance_min=35
+instance_max=35
 instance_step=5
 
 accept_kpi=95

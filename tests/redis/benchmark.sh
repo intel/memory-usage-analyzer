@@ -19,10 +19,12 @@ server_overflow_policy="siblings-first"
 core_policy="spread-nodes"
 swap_mode="zswap"
 mthp=""
-regression_threshold=7
-sweep_start=95
-sweep_step=-2
-sweep_end=65
+# Run only 2 memory-limit data points (90% and 85% of baseline peak) across all
+# compressors. Threshold is set high so both points always run.
+regression_threshold=100
+sweep_start=90
+sweep_step=-5
+sweep_end=85
 NUMA_BALANCING_STATE=""
 
 write_sysctl_value() {

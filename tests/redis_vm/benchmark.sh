@@ -64,10 +64,12 @@ DATA_INPUT="${DATA_INPUT:-import_movies.redis}"  # base input file for dataset n
 DURATION="${DURATION:-120}"                   # memtier run duration per scenario (seconds)
 SWAP_MODE="${SWAP_MODE:-zswap}"               # compressed-swap backend: zswap or zram
 COMPRESSOR="${COMPRESSOR:-all}"               # compressor profile to test, or 'all' for the built-in list
+# Run only 2 memory-limit data points (90% and 85% of baseline peak) across all
+# compressors. Threshold is set high so both points always run.
 SWEEP_START="${SWEEP_START:-90}"              # first (highest) memory limit, as % of baseline peak -> smallest pressure
-SWEEP_END="${SWEEP_END:-75}"                  # last (lowest) memory limit, as % of baseline peak -> largest pressure
+SWEEP_END="${SWEEP_END:-85}"                  # last (lowest) memory limit, as % of baseline peak -> largest pressure
 SWEEP_STEP="${SWEEP_STEP:-5}"                 # % decrement between sweep steps
-REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-7}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
+REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-100}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
 MTHP="${MTHP:-}"                              # mTHP sizes, comma-separated (e.g. 64kB,128kB)
 PREFILL_TIMEOUT="${PREFILL_TIMEOUT:-600}"    # max seconds to wait for prefill to complete (0=no timeout)
 

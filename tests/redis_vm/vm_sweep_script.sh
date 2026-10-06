@@ -169,9 +169,9 @@ esac
 # swap-mode default lists. Values may be space- or comma-separated.
 if [[ -z "$VM_LIST" ]]; then
     if [[ "$SWAP_MODE" == "zram" ]]; then
-        VM_LIST="30 32 34 35 36 37 38 39 40 42 44 46 48 50"
+        VM_LIST="35"
     else
-        VM_LIST="30 32 34 35 36 37 38 39 40 42 44 46 48 50"
+        VM_LIST="35"
     fi
 fi
 read -r -a VM_POINTS <<< "${VM_LIST//,/ }"
