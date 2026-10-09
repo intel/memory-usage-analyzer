@@ -68,7 +68,7 @@ SWEEP_START="${SWEEP_START:-90}"              # first (highest) memory limit, as
 SWEEP_END="${SWEEP_END:-75}"                  # last (lowest) memory limit, as % of baseline peak -> largest pressure
 SWEEP_STEP="${SWEEP_STEP:-5}"                 # % decrement between sweep steps
 REGRESSION_THRESHOLD="${REGRESSION_THRESHOLD:-7}"  # % agg-throughput drop vs baseline that stops the sweep for a compressor
-MTHP="${MTHP:-}"                              # mTHP sizes, comma-separated (e.g. 64kB,128kB)
+MTHP="${MTHP:-2048kB}"                        # mTHP sizes, comma-separated (e.g. 64kB,128kB)
 PREFILL_TIMEOUT="${PREFILL_TIMEOUT:-600}"    # max seconds to wait for prefill to complete (0=no timeout)
 
 CORE_POLICY="${CORE_POLICY:-spread-nodes}"   # host-core assignment: spread-nodes | siblings-first
