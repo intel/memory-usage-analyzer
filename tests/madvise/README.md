@@ -6,7 +6,7 @@ There are two microbenchmarks provided here for checking the functionality and p
 ./zswap_microbench.sh
 ```
 ### Expected Results
-Actual results may change depending platforms.
+Actual results may change depending the platforms and kernel version.
 ```
  threads=1T (single-threaded), pages_per_thread=51746, total_pages=51,746, test_workset_mb=202
 
