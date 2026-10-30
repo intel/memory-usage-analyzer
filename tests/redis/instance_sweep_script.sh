@@ -22,13 +22,15 @@ redis_server_cpus_per_instance=1
 memtier_cpus_per_instance=1
 client_socket_policy="auto"
 server_overflow_policy="siblings-first"
-swap_mode="zswap"
+swap_mode="zram"
 
 init_limit=64
 
 instance_min=40
-instance_max=65
+instance_max=70
 instance_step=5
+custom_instance_list=false
+instance_list="48,50,55,60,61,62,63,64,65,66,68,70"
 
 accept_kpi=95
 oom_kill_checks=1
@@ -54,6 +56,12 @@ Named options:
   --instance-min <num>                Min number of instances (default: 40)
   --instance-max <num>                Max number of instances (default: 65)
   --instance-step <num>               Step size for instance sweep (default: 5)
+  --custom-instance-list <true|false> Use the built-in explicit instance list
+                                      instead of --instance-min/max/step
+                                      (default: false)
+  --instance-list <list>              Explicit instance counts to sweep, e.g.
+                                      "48,50,55" or "48 50 55". Used only when
+                                      --custom-instance-list is true
   --accept-kpi <num>                  Acceptable KPI threshold % (default: 95)
   --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 1)
                                       Checked every 30s; aborts if total new
@@ -95,6 +103,8 @@ while [[ $# -gt 0 ]]; do
         --instance-min)          instance_min="$2";                  shift 2 ;;
         --instance-max)          instance_max="$2";                  shift 2 ;;
         --instance-step)         instance_step="$2";                 shift 2 ;;
+        --custom-instance-list)  custom_instance_list="$2";          shift 2 ;;
+        --instance-list)         instance_list="$2";                 shift 2 ;;
         --accept-kpi)            accept_kpi="$2";                    shift 2 ;;
         --oom-kill-checks)        oom_kill_checks="$2";                shift 2 ;;
         --phase-timeout)         phase_timeout="$2";                  shift 2 ;;
@@ -543,10 +553,9 @@ if [[ "$compressor" == "all" ]]; then
     if [[ -f /proc/sys/vm/reclaim-batchsize ]]; then
         compressor_list=(
             "deflate-iaa_r64_p5_l0_s0"
-            #"deflate-iaa_r64_p5_l12_s64"
-            #"deflate-iaa-dynamic_r32_p3_l12_s64"
+            "deflate-iaa_r32_p3_l12_s64"
             "deflate-iaa-dynamic_r64_p5_l12_s64"
-            #"zstd_r1_p3_l12_s64"
+            "zstd_r1_p3_l12_s64"
             "lz4_r1_p3_l12_s64"
         )
     else
@@ -587,10 +596,14 @@ for comp in "${compressor_list[@]}"; do
             ${core_frequency:+-f "$core_frequency"}
     fi
 
-    if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
-        continue
+    # Baseline configs (_l0_s0) intentionally skip zram/zswap setup, so there is
+    # no active compressor to verify — only verify when a swap device is configured.
+    if [[ "${cfg_zram_mem_limit:-0}" != "0" || "${cfg_zram_disk_size:-0}" != "0" ]]; then
+        if ! verify_compressor_active "$swap_mode" "$comp_algo"; then
+            continue
+        fi
+        [[ "$comp_algo" == deflate-iaa* ]] && ran_iaa_algos+="$comp_algo "
     fi
-    [[ "$comp_algo" == deflate-iaa* ]] && ran_iaa_algos+="$comp_algo "
 
     LOGDIR_COMP="${LOGDIR}/${comp}"
     mkdir -p "${LOGDIR_COMP}"
@@ -600,16 +613,28 @@ for comp in "${compressor_list[@]}"; do
     # Zram    (_l12_s64): limit = init_limit - zram_mem_limit (64 - 12 = 52 GB)
     compute_memory_limit
 
+    # Build the list of instance counts to sweep. When --custom-instance-list is
+    # true, sweep the explicit --instance-list; otherwise use min/max/step.
+    local_instances=()
+    if [[ "$custom_instance_list" == "true" ]]; then
+        read -r -a local_instances <<< "${instance_list//,/ }"
+    else
+        for (( instances=instance_min; instances<=instance_max; instances+=instance_step )); do
+            local_instances+=("$instances")
+        done
+    fi
+
     # Sweep instance counts under the cgroup memory limit
-    for (( instances=instance_min; instances<=instance_max; instances+=instance_step )); do
+    for instances in "${local_instances[@]}"; do
         echo "=== Running ${instances} instances, limit ${eff_limit}GB (${limit} bytes) ==="
         run_instance_scenario "${instances}" "${limit}" "${LOGDIR_COMP}" || true
     done
 
     # Validate that the first sweep point produced valid results
-    first_log="${LOGDIR_COMP}/instances-${instance_min}.log"
+    first_instance="${local_instances[0]}"
+    first_log="${LOGDIR_COMP}/instances-${first_instance}.log"
     if [[ ! -f "$first_log" ]] || ! grep -q "actual_instances:[[:space:]]*[1-9]" "$first_log"; then
-        echo "WARNING: first sweep point (${instance_min} instances) failed — skipping compressor ${comp}" >&2
+        echo "WARNING: first sweep point (${first_instance} instances) failed — skipping compressor ${comp}" >&2
         continue
     fi
 
