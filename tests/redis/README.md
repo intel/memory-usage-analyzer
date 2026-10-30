@@ -134,6 +134,11 @@ Named options:
   --instance-min <num>                Min number of instances to sweep (default: 40)
   --instance-max <num>                Max number of instances to sweep (default: 65)
   --instance-step <num>               Step size for instance sweep (default: 5)
+  --custom-instance-list <true|false> Sweep an explicit --instance-list instead of
+                                      --instance-min/max/step (default: false)
+  --instance-list <list>              Explicit instance counts to sweep, e.g.
+                                      "48,50,55" or "48 50 55". Used only when
+                                      --custom-instance-list is true
   --accept-kpi <num>                  Acceptable KPI threshold % (default: 95)
   --oom-kill-checks <num>             Cumulative new OOM kills before abort (default: 1)
   --phase-timeout <sec>               Max seconds per phase before kill (default: 1800)
@@ -153,6 +158,9 @@ Examples:
 
   # Single config with explicit zram limit and disksize
   ./instance_sweep_script.sh -m zram -c deflate-iaa-dynamic_r64_p5_l12_s64 -f 3500 --instance-min 50 --instance-max 70
+
+  # Explicit list of instance counts instead of min/max/step
+  ./instance_sweep_script.sh -m zram -c all --custom-instance-list true --instance-list "48,50,55,60,62,64,66,68"
 
   # zswap mode
   ./instance_sweep_script.sh -m zswap -c all --init-limit 64 --accept-kpi 95
@@ -179,8 +187,10 @@ When `--compressor all` is specified, the following configurations are tested in
 | # | Config | `config_sys_zram.sh` equivalent |
 |---|--------|--------------------------------|
 | 1 (baseline) | `deflate-iaa_r64_p5_l0_s0` | `-c deflate-iaa -r 64 -p 5` |
-| 2 | `deflate-iaa-dynamic_r64_p5_l12_s64` | `-c deflate-iaa-dynamic -r 64 -p 5 -l 12 -s 64` |
-| 3 | `lz4_r1_p3_l12_s64` | `-c lz4 -r 1 -p 3 -l 12 -s 64` |
+| 2 | `deflate-iaa_r32_p3_l12_s64` | `-c deflate-iaa -r 32 -p 3 -l 12 -s 64` |
+| 3 | `deflate-iaa-dynamic_r64_p5_l12_s64` | `-c deflate-iaa-dynamic -r 64 -p 5 -l 12 -s 64` |
+| 4 | `zstd_r1_p3_l12_s64` | `-c zstd -r 1 -p 3 -l 12 -s 64` |
+| 5 | `lz4_r1_p3_l12_s64` | `-c lz4 -r 1 -p 3 -l 12 -s 64` |
 
 The baseline config (`_l0_s0`) runs with `memory.max = init-limit`; the zram configs reserve `zram-limit` GB and run with `memory.max = init-limit − zram-limit`.
 
@@ -191,9 +201,11 @@ The baseline config (`_l0_s0`) runs with `memory.max = init-limit`; the zram con
 3. The cgroup memory limit is derived from `--init-limit`:
    * baseline configs (`_l0_s0`, no zram) use `memory.max = init-limit`;
    * zram configs use `memory.max = init-limit − zram-limit`, reserving the remainder for the zram device.
-4. The script sweeps from `--instance-min` to `--instance-max` instances (stepping by `--instance-step`), running all instances under that memory limit.
-5. Per-instance throughput, aggregate throughput, p99 latency, CPU usage, and swap statistics are collected. The first sweep point (`--instance-min`) is used as the baseline for KPI comparison.
-6. Results are automatically piped through `instance_sweep_reporter.py` to produce a `.report` table per config and a combined HTML report with KPI crossing-point analysis.
+4. The script sweeps the instance counts under that memory limit. By default it steps from `--instance-min` to `--instance-max` by `--instance-step`; when `--custom-instance-list true` is set, it instead sweeps the explicit counts in `--instance-list` (e.g. `"48,50,55,60"`).
+5. Per-instance throughput, aggregate throughput, p99 latency, CPU usage, and swap statistics are collected. The first sweep point is used as the baseline for KPI comparison.
+6. Results are automatically piped through `instance_sweep_reporter.py` to produce a `.report` table per config and a combined HTML report with KPI crossing-point analysis. The `baseline` config (`_l0_s0`) is always listed first in the report tables and plot legends.
+
+When computing the KPI crossing point, sweep points where some Redis servers were OOM-killed (`ActInst != CfgInst`) are dropped first, so the crossing point reflects only fully-served instance counts.
 
 ## Report Metrics
 
