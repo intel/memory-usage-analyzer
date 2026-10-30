@@ -411,7 +411,9 @@ def compute_crossing_points(series_list, accept_kpi):
     """Compute the instance count at which performance drops below accept_kpi."""
     results = []
     for s in series_list:
-        rows = s["rows"]
+        # Only fully-served sweep points count; drop runs where some servers
+        # were OOM-killed (actual_instances != configured_instances).
+        rows = [r for r in s["rows"] if r["actual_instances"] == r["configured_instances"]]
         if len(rows) < 2:
             results.append({"name": s["name"], "crossing_point": None, "status": "Insufficient data"})
             continue
@@ -791,12 +793,12 @@ def _build_summary_table_html(series_list):
         html += f"<th style='{_CELL_STYLE}'>{col}</th>"
     html += "</tr></thead><tbody>"
 
-    # Sort rows by compressor name then scenario
+    # Sort rows: baseline compressor first, then by name, then scenario
     sorted_rows = []
     for s in series_list:
         for r in s["rows"]:
             sorted_rows.append((s["name"], r))
-    sorted_rows.sort(key=lambda x: (x[0], scenario_key(x[1]["scenario"])))
+    sorted_rows.sort(key=lambda x: (x[0] != "baseline", x[0], scenario_key(x[1]["scenario"])))
 
     for comp_name, r in sorted_rows:
         zpool_str = f"{r['zpool_gib']:.2f}" if r.get("zpool_gib") is not None else "-"
@@ -1021,6 +1023,10 @@ def main():
         if not series_list:
             print("ERROR: no valid report data found.", file=sys.stderr)
             sys.exit(1)
+
+        # Baseline series first, then the rest alphabetically, so the crossing
+        # point table and plot legends always lead with the baseline.
+        series_list.sort(key=lambda s: (s["name"] != "baseline", s["name"]))
 
         generate_plot(series_list, args.accept_kpi, args.output_dir)
     else:
