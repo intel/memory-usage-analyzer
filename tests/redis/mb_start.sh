@@ -213,7 +213,7 @@ run_memtier(){
       # Force to only specific CPU core
       echo "Run memtier benchmark instance:${i} ... "
       cpu_list=$(get_memtier_cpu_list_for_instance "$i" "$memtier_cpus_per_instance")
-      cmd=(numactl -C "$cpu_list" "${numactl_client_opts[@]}" memtier_benchmark -s localhost -p $port_no --key-prefix= --key-minimum=1 --key-maximum=${max_keys} --key-stddev=${key_spread} --test-time=$duration --show-config --threads=1 --clients=4 --pipeline=1  --ratio=20:80 --key-pattern=G:G )
+      cmd=(numactl -C "$cpu_list" "${numactl_client_opts[@]}" memtier_benchmark -s localhost -p $port_no --key-prefix= --key-minimum=1 --key-maximum=${max_keys} --key-stddev=${key_spread} --test-time=$duration --show-config --threads=1 --clients=2 --pipeline=1  --ratio=20:80 --key-pattern=G:G )
       echo "Running: ${cmd[*]}  > ${log_dir}/run_${i}.log"
       "${cmd[@]}" > "${log_dir}/run_${i}.log"  &
       pids+=($!)
