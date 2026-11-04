@@ -55,11 +55,13 @@ candidate_comp_list="lz4 lzo-rle zstd deflate-iaa deflate-iaa-dynamic"
 # Bring up a clean, *uninitialized* zram device for probing. comp_algorithm can
 # only be changed while the device has no disksize set, so tear down whatever
 # config_sys_zram.sh left behind first (the per-compressor loop recreates it).
-swapoff /dev/zram0 2>/dev/null || true
-umount /mnt/zram_disk 2>/dev/null || true
-echo 0 > /sys/class/zram-control/hot_remove 2>/dev/null || true
+../scripts/reset_zram_zswap.sh
 modprobe zram 2>/dev/null || true
 [[ -e /sys/block/zram0 ]] || cat /sys/class/zram-control/hot_add >/dev/null 2>&1 || true
+if [[ "$(cat /sys/block/zram0/disksize 2>/dev/null)" != "0" ]]; then
+    echo "ERROR: /sys/block/zram0 is still initialized (disksize set); cannot probe compressors" >&2
+    exit 1
+fi
 
 # Detect selectable compressors by actually trying to set each one. The
 # comp_algorithm sysfs "list" only advertises the built-in backends plus the
