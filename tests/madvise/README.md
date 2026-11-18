@@ -1,6 +1,8 @@
 # Instructions
 There are two microbenchmarks provided here for checking the functionality and performance of zswap and zram with IAA. The microbenchmark uses "madvise" Linux system call to force swap-out and then swap-in the pages to exercise the path and measure the swap-out and swap-in latencies. Different compression algorithms are compared in these scenarios. silesia.tar dataset is used to fill the memory pages to have a compressible memory contents.
 
+In kernel patches where batching is supported, <compressor>_r[n]_p[n] below refers to the reclaim and page-cluster batching to take advantage of the parallel IAA engines. For example, r64 refers to compression batching up to 64 folios and p3 refers to page-cluster configuration 3 (or 2^^3=8 read ahead batching) for decompression
+
 ## zswap Microbenchmark
 ```
 ./zswap_microbench.sh
